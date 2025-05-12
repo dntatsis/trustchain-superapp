@@ -11,8 +11,10 @@ import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import java.security.SecureRandom
 
 class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
     private lateinit var user: User
@@ -59,6 +61,18 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         view.findViewById<Button>(R.id.user_home_sync_addresses).setOnClickListener {
             communicationProtocol.scopePeers()
         }
+
+        // Set up Shamir algo demo
+        view.findViewById<Button>(R.id.shamir_button).setOnClickListener {
+            val secret = "this_is_my_private_id".toByteArray(Charsets.UTF_8)
+            val scheme = Scheme(SecureRandom(), 3, 2)
+            val parts = scheme.split(secret)
+            val partialParts = parts.entries.take(2).associate { it.toPair() }
+            val recovered = scheme.join(partialParts)
+            val recoveredString = String(recovered, Charsets.UTF_8)
+            Toast.makeText(context, "Recovered: $recoveredString", Toast.LENGTH_LONG).show()
+        }
+
         val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
         val addresses = communicationProtocol.addressBookManager.getAllAddresses()
         TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
