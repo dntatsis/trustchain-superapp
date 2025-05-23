@@ -183,18 +183,20 @@
                 android:text="List of connected TTPs (_size_): _vals_" />
 
         </LinearLayout>
+
     <LinearLayout
+        android:id="@+id/linearLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
         android:gravity="center_horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginBottom="10dp">
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <Button
             android:id="@+id/user_home_reset_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Reset"/>
+            android:text="Reset" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
