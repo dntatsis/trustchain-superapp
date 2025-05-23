@@ -18,6 +18,11 @@ interface ICommunicationProtocol {
         publicKey: Element,
         nameTTP: String
     )
+    fun connect(
+        userName: String,
+        secretShare: ByteArray,
+        nameTTP: String
+    )
 
     fun getBlindSignatureRandomness(
         publicKey: Element,

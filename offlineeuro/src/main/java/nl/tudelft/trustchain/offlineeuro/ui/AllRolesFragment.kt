@@ -1,6 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.ui
-
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -13,6 +13,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.IDTTP
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
@@ -21,7 +22,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     private lateinit var iPV8CommunicationProtocol: IPV8CommunicationProtocol
     private lateinit var community: OfflineEuroCommunity
 
-    private lateinit var ttp: TTP
+    private lateinit var ttpList: MutableList<TTP>
     private lateinit var bank: Bank
     private lateinit var user: User
 
@@ -35,7 +36,29 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         val group = BilinearGroup(PairingTypes.FromFile, context = context)
         val addressBookManager = AddressBookManager(context, group)
         iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-        ttp = TTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onTTPDataChangeCallback)
+        Log.i("TTPs","running")
+
+        // create N TTPs, first one being an identification TTP
+        val n = 3
+        ttpList = MutableList(n) { index ->
+            val ttpName = if (index == 0) "Identification TTP" else "TTP $index"
+            if (index == 0)
+                IDTTP(
+                name = ttpName,
+                group = group,
+                communicationProtocol = iPV8CommunicationProtocol,
+                context = context,
+                onDataChangeCallback = onTTPDataChangeCallback)
+            else
+                TTP(
+                name = ttpName,
+                group = group,
+                communicationProtocol = iPV8CommunicationProtocol,
+                context = context,
+                onDataChangeCallback = onTTPDataChangeCallback)
+
+        }
+        // ttp = TTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onTTPDataChangeCallback)
 
         bank = Bank("Bank", group, iPV8CommunicationProtocol, context, runSetup = false, onDataChangeCallback = onBankDataChangeCallBack)
         user =
@@ -46,28 +69,36 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
                 null,
                 iPV8CommunicationProtocol,
                 runSetup = false,
-                onDataChangeCallback = onUserDataChangeCallBack
+                onDataChangeCallback = onUserDataChangeCallBack,
+                Identification_Value = "my_secret"
             )
 
-        bank.group = ttp.group
-        bank.crs = ttp.crs
+        bank.group = ttpList[0].group
+        bank.crs = ttpList[0].crs
         bank.generateKeyPair()
 
-        user.group = ttp.group
-        user.crs = ttp.crs
+        user.group = ttpList[0].group
+        user.crs = ttpList[0].crs
 
-        ParticipantHolder.ttp = ttp
+        ParticipantHolder.ttp = ttpList
         ParticipantHolder.bank = bank
         ParticipantHolder.user = user
 
-        iPV8CommunicationProtocol.participant = ttp
+        iPV8CommunicationProtocol.participant = ttpList[0]
 
-        ttp.registerUser(user.name, user.publicKey)
-        ttp.registerUser(bank.name, bank.publicKey)
+        ttpList[0].registerUser(user.name, user.publicKey)
+        ttpList[0].registerUser(bank.name, bank.publicKey)
 
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(bank.name, Role.Bank, bank.publicKey, null))
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(user.name, Role.User, user.publicKey, null))
-        iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttp.name, Role.TTP, ttp.publicKey, null))
+        iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[0].name, Role.ID_TTP, ttpList[0].publicKey, null))
+
+        ttpList.subList(1, ttpList.size).forEach { ttp ->
+            iPV8CommunicationProtocol.addressBookManager.insertAddress(
+                Address(ttp.name, Role.TTP, ttp.publicKey, null)
+            )
+        }
+        print(iPV8CommunicationProtocol.addressBookManager.getAllAddresses())
 
         prepareButtons(view)
         setTTPAsChild()
@@ -101,7 +132,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     }
 
     private fun setTTPAsChild() {
-        iPV8CommunicationProtocol.participant = ttp
+        iPV8CommunicationProtocol.participant = ttpList[0]
         val ttpFragment = TTPHomeFragment()
         childFragmentManager.beginTransaction()
             .replace(R.id.parent_fragment_container, ttpFragment)
@@ -151,17 +182,17 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     }
 
     private val onTTPDataChangeCallback: (String?) -> Unit = { message ->
-        if (this::ttp.isInitialized) {
+        if (this::ttpList.isInitialized) {
             requireActivity().runOnUiThread {
                 val context = requireContext()
-                CallbackLibrary.ttpCallback(context, message, requireView(), ttp)
+                CallbackLibrary.ttpCallback(context, message, requireView(), ttpList[0])
             }
         }
     }
 
     private fun updateUserList(view: View) {
         val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
-        val users = ttp.getRegisteredUsers()
+        val users = ttpList[0].getRegisteredUsers()
         TableHelpers.removeAllButFirstRow(table)
         TableHelpers.addRegisteredUsersToTable(table, users)
     }

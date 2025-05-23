@@ -5,7 +5,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.User
 
 object ParticipantHolder {
-    var ttp: TTP? = null
+    var ttp: MutableList<TTP>? = null
     var bank: Bank? = null
     var user: User? = null
 }

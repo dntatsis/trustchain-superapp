@@ -20,6 +20,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMe
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TTPConnectionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
@@ -30,6 +31,8 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequest
 import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.FraudControlRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPRegistrationPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.TTPConnectionPayload
+
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionDetailsPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizationElementsPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
@@ -59,6 +62,8 @@ object MessageID {
 
     const val FRAUD_CONTROL_REQUEST = 22
     const val FRAUD_CONTROL_REPLY = 23
+
+    const val CONNECT_TO_TTP = 24
 }
 
 class OfflineEuroCommunity(
@@ -76,6 +81,8 @@ class OfflineEuroCommunity(
         messageHandlers[MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY] = ::onGetGroupDescriptionAndCRSReplyPacket
 
         messageHandlers[MessageID.REGISTER_AT_TTP] = ::onGetRegisterAtTTPPacket
+
+        messageHandlers[MessageID.CONNECT_TO_TTP] = ::onGetConnectAtTTPPacket
 
         messageHandlers[MessageID.GET_BLIND_SIGNATURE_RANDOMNESS] = ::onGetBlindSignatureRandomnessPacket
         messageHandlers[MessageID.GET_BLIND_SIGNATURE_RANDOMNESS_REPLY] = ::onGetBlindSignatureRandomnessReplyPacket
@@ -169,10 +176,47 @@ class OfflineEuroCommunity(
 
         send(ttpPeer, registerPacket)
     }
+    fun onGetConnectAtTTPPacket(packet: Packet) {
+        val (peer, payload) = packet.getAuthPayload(TTPConnectionPayload)
+        onGetConnectAtTTP(peer, payload)
+    }
 
+    fun onGetConnectAtTTP(
+        peer: Peer,
+        payload: TTPConnectionPayload
+    ) {
+        val userName = payload.userName
+        val secretShare = payload.secretShare
+
+        val message =
+            TTPConnectionMessage(
+                userName,
+                secretShare
+            )
+
+        addMessage(message)
+    }
     fun onGetRegisterAtTTPPacket(packet: Packet) {
         val (peer, payload) = packet.getAuthPayload(TTPRegistrationPayload)
         onGetRegisterAtTTP(peer, payload)
+    }
+    fun connectAtTTP(
+        name: String,
+        secretShare: ByteArray,
+        publicKeyTTP: ByteArray
+    ) {
+        val ttpPeer = getPeerByPublicKeyBytes(publicKeyTTP) ?: throw Exception("TTP not found")
+
+        val registerPacket =
+            serializePacket(
+                MessageID.CONNECT_TO_TTP,
+                TTPConnectionPayload(
+                    name,
+                    secretShare
+                )
+            )
+
+        send(ttpPeer, registerPacket)
     }
 
     fun onGetRegisterAtTTP(

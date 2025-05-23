@@ -8,13 +8,15 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 
-class TTP(
+
+    open class TTP(
     name: String = "TTP",
     group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
     private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
-    onDataChangeCallback: ((String?) -> Unit)? = null
+    onDataChangeCallback: ((String?) -> Unit)? = null,
+    private var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val crsMap: Map<Element, Element>
 
@@ -35,6 +37,14 @@ class TTP(
         onDataChangeCallback?.invoke("Registered $name")
         return result
     }
+        fun connectUser(
+            name: String,
+            secretShare: ByteArray
+        ): Boolean {
+            val result = registeredUserManager.addRegisteredUser(name, publicKey)
+            onDataChangeCallback?.invoke("Registered $name")
+            return result
+        }
 
     fun getRegisteredUsers(): List<RegisteredUser> {
         return registeredUserManager.getAllRegisteredUsers()
@@ -77,3 +87,13 @@ class TTP(
         registeredUserManager.clearAllRegisteredUsers()
     }
 }
+
+    class IDTTP (
+    name: String = "IDTTP",
+    group: BilinearGroup,
+    communicationProtocol: ICommunicationProtocol,
+    context: Context?,
+    registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
+    onDataChangeCallback: ((String?) -> Unit)? = null
+
+) : TTP(name,group,communicationProtocol,context,registeredUserManager,onDataChangeCallback)

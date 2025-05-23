@@ -15,7 +15,10 @@ class User(
     private var walletManager: WalletManager? = null,
     communicationProtocol: ICommunicationProtocol,
     runSetup: Boolean = true,
-    onDataChangeCallback: ((String?) -> Unit)? = null
+    onDataChangeCallback: ((String?) -> Unit)? = null,
+    var Identification_Value: String = "",
+    val connected: MutableList<String> = mutableListOf(),
+    var identified: Boolean = false
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val wallet: Wallet
 

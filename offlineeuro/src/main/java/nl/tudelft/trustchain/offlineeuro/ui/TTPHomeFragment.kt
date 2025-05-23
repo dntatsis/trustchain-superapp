@@ -8,10 +8,11 @@ import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.entity.IDTTP
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 
 class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
-    private lateinit var ttp: TTP
+    private lateinit var ttp: MutableList<TTP>
     private lateinit var iPV8CommunicationProtocol: IPV8CommunicationProtocol
     private lateinit var community: OfflineEuroCommunity
 
@@ -29,7 +30,8 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
             iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-            ttp = TTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onDataChangeCallback)
+            var IDTTP_instance : TTP = IDTTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onDataChangeCallback)
+            ttp.add(IDTTP_instance)
         }
         onDataChangeCallback(null)
     }
@@ -38,7 +40,7 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         if (this::ttp.isInitialized) {
             requireActivity().runOnUiThread {
                 val context = requireContext()
-                CallbackLibrary.ttpCallback(context, message, requireView(), ttp)
+                CallbackLibrary.ttpCallback(context, message, requireView(), ttp[0])
             }
         }
     }

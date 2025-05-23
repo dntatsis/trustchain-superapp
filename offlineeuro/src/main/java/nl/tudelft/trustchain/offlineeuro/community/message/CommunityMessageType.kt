@@ -11,6 +11,8 @@ enum class CommunityMessageType {
 
     TTPRegistrationMessage,
 
+    TTPConnectionMessage,
+
     BlindSignatureRandomnessRequestMessage,
     BlindSignatureRandomnessReplyMessage,
 

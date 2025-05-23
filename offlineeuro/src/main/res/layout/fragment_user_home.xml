@@ -168,6 +168,20 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:text="Sync Address list" />
+
+            <Button
+                android:id="@+id/user_connect_ttps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:text="Connect to available TTPs" />
+
+            <TextView
+                android:id="@+id/print_connected_ttps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="List of connected TTPs (_size_): _vals_" />
+
         </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
@@ -182,4 +196,5 @@
             android:layout_height="wrap_content"
             android:text="Reset"/>
     </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

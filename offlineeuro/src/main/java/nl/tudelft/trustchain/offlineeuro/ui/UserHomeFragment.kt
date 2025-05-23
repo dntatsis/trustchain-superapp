@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -13,6 +14,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
     private lateinit var user: User
@@ -31,6 +33,11 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val userName: String = user.name
             val welcomeTextView = view.findViewById<TextView>(R.id.user_home_welcome_text)
             welcomeTextView.text = welcomeTextView.text.toString().replace("_name_", userName)
+
+            val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
+            listTextView.text = listTextView.text.toString().replace("_size_", user.connected.size.toString())
+            listTextView.text = listTextView.text.toString().replace("_vals_", user.connected.toString())
+
         } else {
             activity?.title = "User"
             val userName: String? = arguments?.getString("userName")
@@ -55,6 +62,30 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
             val addresses = communicationProtocol.addressBookManager.getAllAddresses()
             TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
+        }
+
+        view.findViewById<Button>(R.id.user_connect_ttps).setOnClickListener {
+            val n = 3
+            val k = 2
+            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+            Log.i("adr", addresses.toString())
+            val connectedNames = user.connected.map { it }
+            for (address in addresses) {
+                if ((address.type == Role.ID_TTP || address.type == Role.TTP) && address.name !in connectedNames)
+                    // add element
+                    print("hi")
+                    user.connected.add(address.name)
+                    if (user.connected.size >= n)
+                        // if n connections, secret share
+                        val scheme = Scheme(SecureRandom(), n, k)
+                        val parts = scheme.split(user.Identification_Value)
+                        val partialParts = parts.entries.take(2).associate { it.toPair() }
+                        Log.i("adr", partialParts.toString())
+                        print("Hi!")
+                        // communicationProtocol.connect(user.name,partialParts[i])
+                        break
+            }
+
         }
         view.findViewById<Button>(R.id.user_home_sync_addresses).setOnClickListener {
             communicationProtocol.scopePeers()

@@ -15,6 +15,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMess
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
+import nl.tudelft.trustchain.offlineeuro.community.message.TTPConnectionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
@@ -66,6 +67,15 @@ class IPV8CommunicationProtocol(
     ) {
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
         community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+    }
+
+    override fun connect(
+        userName: String,
+        secretShare: ByteArray,
+        nameTTP: String
+    ) {
+        val ttpAddress = addressBookManager.getAddressByName(nameTTP)
+        community.connectAtTTP(userName, secretShare, ttpAddress.peerPublicKey!!)
     }
 
     override fun getBlindSignatureRandomness(
@@ -244,7 +254,14 @@ class IPV8CommunicationProtocol(
         val publicKey = ttp.group.gElementFromBytes(message.userPKBytes)
         ttp.registerUser(message.userName, publicKey)
     }
+    private fun handleConnectionMessage(message: TTPConnectionMessage) {
+        if (participant !is TTP) {
+            return
+        }
 
+        val ttp = participant as TTP
+        ttp.connectUser(message.userName, message.secretShare)
+    }
     private fun handleAddressRequestMessage(message: AddressRequestMessage) {
         val role = getParticipantRole()
 
@@ -272,6 +289,7 @@ class IPV8CommunicationProtocol(
             is TransactionRandomizationElementsRequestMessage -> handleTransactionRandomizationElementsRequest(message)
             is TransactionMessage -> handleTransactionMessage(message)
             is TTPRegistrationMessage -> handleRegistrationMessage(message)
+            is TTPConnectionMessage -> handleConnectionMessage(message)
             is FraudControlRequestMessage -> handleFraudControlRequestMessage(message)
             else -> throw Exception("Unsupported message type")
         }
