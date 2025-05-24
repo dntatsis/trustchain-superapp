@@ -7,6 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
+import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 
 
     open class TTP(
@@ -15,8 +16,9 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
     private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
+    private val connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
     onDataChangeCallback: ((String?) -> Unit)? = null,
-    private var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
+    // private var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val crsMap: Map<Element, Element>
 
@@ -34,14 +36,15 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
         publicKey: Element
     ): Boolean {
         val result = registeredUserManager.addRegisteredUser(name, publicKey)
-        onDataChangeCallback?.invoke("Registered $name")
+        onDataChangeCallback?.invoke("1Registered $name")
         return result
     }
         fun connectUser(
             name: String,
             secretShare: ByteArray
         ): Boolean {
-            val result = registeredUserManager.addRegisteredUser(name, publicKey)
+            val result = connectedUserManager.addConnectedUser(name, secretShare)
+
             onDataChangeCallback?.invoke("Registered $name")
             return result
         }
@@ -49,7 +52,9 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
     fun getRegisteredUsers(): List<RegisteredUser> {
         return registeredUserManager.getAllRegisteredUsers()
     }
-
+        fun getConnectedUsers(): List<ConnectedUser> {
+            return connectedUserManager.getAllConnectedUsers()
+        }
     override fun onReceivedTransaction(
         transactionDetails: TransactionDetails,
         publicKeyBank: Element,
@@ -88,12 +93,13 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
     }
 }
 
-    class IDTTP (
-    name: String = "IDTTP",
+    class REGTTP (
+    name: String = "REGTTP",
     group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
     registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
+    connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
     onDataChangeCallback: ((String?) -> Unit)? = null
 
-) : TTP(name,group,communicationProtocol,context,registeredUserManager,onDataChangeCallback)
+) : TTP(name,group,communicationProtocol,context,registeredUserManager,connectedUserManager,onDataChangeCallback)

@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.communication
 
+import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
@@ -29,6 +30,8 @@ import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
+import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
+
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
@@ -65,7 +68,11 @@ class IPV8CommunicationProtocol(
         publicKey: Element,
         nameTTP: String
     ) {
+        Log.i("adr_reg",nameTTP)
+
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
+        Log.i("adr_reg",ttpAddress.toString())
+
         community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
     }
 
@@ -74,7 +81,10 @@ class IPV8CommunicationProtocol(
         secretShare: ByteArray,
         nameTTP: String
     ) {
+
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
+        Log.i("adr5",ttpAddress.toString())
+
         community.connectAtTTP(userName, secretShare, ttpAddress.peerPublicKey!!)
     }
 
@@ -143,6 +153,7 @@ class IPV8CommunicationProtocol(
     }
 
     fun scopePeers() {
+        Log.i("adr","initating scope from ${getParticipantRole()}")
         community.scopePeers(participant.name, getParticipantRole(), participant.publicKey.toBytes())
     }
 
@@ -264,12 +275,12 @@ class IPV8CommunicationProtocol(
     }
     private fun handleAddressRequestMessage(message: AddressRequestMessage) {
         val role = getParticipantRole()
-
+        Log.i("adr","sending back the following participant: " + participant.name + " " + role)
         community.sendAddressReply(participant.name, role, participant.publicKey.toBytes(), message.requestingPeer)
     }
 
     private fun handleFraudControlRequestMessage(message: FraudControlRequestMessage) {
-        if (getParticipantRole() != Role.TTP) {
+        if (getParticipantRole() != Role.REG_TTP) {
             return
         }
         val ttp = participant as TTP
@@ -297,8 +308,10 @@ class IPV8CommunicationProtocol(
     }
 
     private fun getParticipantRole(): Role {
+
         return when (participant) {
             is User -> Role.User
+            is REGTTP -> Role.REG_TTP
             is TTP -> Role.TTP
             is Bank -> Role.Bank
             else -> throw Exception("Unknown role")

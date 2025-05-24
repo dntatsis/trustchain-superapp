@@ -13,7 +13,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
-import nl.tudelft.trustchain.offlineeuro.entity.IDTTP
+import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
@@ -36,14 +36,15 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         val group = BilinearGroup(PairingTypes.FromFile, context = context)
         val addressBookManager = AddressBookManager(context, group)
         iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-        Log.i("TTPs","running")
+        Log.i("adr_0",community.toString())
+        Log.i("adr_0",context.toString())
 
-        // create N TTPs, first one being an identification TTP
+        // create N TTPs, first one being an registration TTP
         val n = 3
         ttpList = MutableList(n) { index ->
-            val ttpName = if (index == 0) "Identification TTP" else "TTP $index"
+            val ttpName = if (index == 0) "TTP" else "TTP $index"
             if (index == 0)
-                IDTTP(
+                REGTTP(
                 name = ttpName,
                 group = group,
                 communicationProtocol = iPV8CommunicationProtocol,
@@ -91,7 +92,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
 
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(bank.name, Role.Bank, bank.publicKey, null))
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(user.name, Role.User, user.publicKey, null))
-        iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[0].name, Role.ID_TTP, ttpList[0].publicKey, null))
+        iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[0].name, Role.REG_TTP, ttpList[0].publicKey, null))
 
         ttpList.subList(1, ttpList.size).forEach { ttp ->
             iPV8CommunicationProtocol.addressBookManager.insertAddress(

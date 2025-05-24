@@ -1,0 +1,37 @@
+createConnectedUserTable:
+CREATE TABLE IF NOT EXISTS ConnectedUsers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    secretShare BLOB UNIQUE NOT NULL
+);
+
+addUser:
+INSERT INTO ConnectedUsers(name, secretShare)
+VALUES (?, ?);
+
+getUserById:
+SELECT *
+FROM ConnectedUsers
+WHERE id = ?;
+
+getUserBysecretShare:
+SELECT *
+FROM ConnectedUsers
+WHERE secretShare = ?;
+
+getUserByName:
+SELECT *
+FROM ConnectedUsers
+WHERE name = ?;
+
+getRegisteredUserCount:
+SELECT COUNT(*)
+FROM ConnectedUsers;
+
+getAllConnectedUsers:
+SELECT *
+FROM ConnectedUsers;
+
+
+clearAllConnectedUsers:
+DELETE FROM ConnectedUsers;

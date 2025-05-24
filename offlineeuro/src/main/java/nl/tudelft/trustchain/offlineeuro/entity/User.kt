@@ -30,6 +30,8 @@ class User(
             setUp()
         } else {
             generateKeyPair()
+            // registerAtTTP()
+
         }
         if (walletManager == null) {
             walletManager = WalletManager(context, group)

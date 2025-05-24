@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.db
 
 import android.content.Context
+import android.util.Log
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import nl.tudelft.offlineeuro.sqldelight.AddressBookQueries
@@ -45,6 +46,8 @@ class AddressBookManager(
     }
 
     fun getAddressByName(name: String): Address {
+        val all = queries.getAllAddresses(addressMapper).executeAsList()
+        Log.i("adr", "All entries: $all")
         return queries.getAddressByName(
             name,
             addressMapper

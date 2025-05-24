@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.community
 
+import android.util.Log
 import nl.tudelft.ipv8.Overlay
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainCommunity
@@ -104,13 +105,20 @@ class OfflineEuroCommunity(
     }
 
     fun getGroupDescriptionAndCRS() {
+        Log.i("adr","in_get_group_func")
+        myPeer.publicKey?.let {
+            Log.i("adr", it.toString())
+        }
         val packet =
             serializePacket(
                 MessageID.GET_GROUP_DESCRIPTION_CRS,
                 ByteArrayPayload(myPeer.publicKey.keyToBin())
             )
+        Log.i("adr","serialized")
+        Log.i("adr",getPeers().toString())
 
         for (peer: Peer in getPeers()) {
+            Log.i("adr", "sent to peer:$peer")
             send(peer, packet)
         }
     }
@@ -152,7 +160,7 @@ class OfflineEuroCommunity(
         val groupElements = payload.bilinearGroupElements
         val crs = payload.crs
 
-        val ttpAddressMessage = AddressMessage("TTP", Role.TTP, payload.ttpPublicKey, peer.publicKey.keyToBin())
+        val ttpAddressMessage = AddressMessage("TTP", Role.REG_TTP, payload.ttpPublicKey, peer.publicKey.keyToBin())
 
         val message = BilinearGroupCRSReplyMessage(groupElements, crs, ttpAddressMessage)
         addMessage(message)
@@ -572,6 +580,7 @@ class OfflineEuroCommunity(
             )
 
         for (peer in getPeers()) {
+            Log.i("adr_peers",peer.toString())
             send(peer, addressPacket)
         }
     }
@@ -587,8 +596,11 @@ class OfflineEuroCommunity(
     ) {
         val addressMessage = AddressMessage(payload.userName, payload.role, payload.publicKey, requestingPeer.publicKey.keyToBin())
         addMessage(addressMessage)
+        Log.i("adr_user", "scoping peers successful, they are...: ${payload.userName}, ${payload.role}, ${addressMessage.messageType} ")
 
         val addressRequestMessage = AddressRequestMessage(requestingPeer)
+        Log.i("adr_user", "requester was ${requestingPeer.publicKey} ")
+
         addMessage(addressRequestMessage)
     }
 
