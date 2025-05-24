@@ -16,12 +16,15 @@ import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMess
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
+import nl.tudelft.trustchain.offlineeuro.community.message.ShareRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ShareResponseMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPConnectionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
+import nl.tudelft.trustchain.offlineeuro.community.payload.ShareResponsePayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
@@ -68,23 +71,26 @@ class IPV8CommunicationProtocol(
         publicKey: Element,
         nameTTP: String
     ) {
-        Log.i("adr_reg",nameTTP)
 
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-        Log.i("adr_reg",ttpAddress.toString())
-
         community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
     }
 
-    override fun connect(
+    override fun requestShare( // send your request for a share
+        userName: String,
+        ttpname: String
+    ){
+        val ttpAddress = addressBookManager.getAddressByName(ttpname)
+
+        community.requestSharefromTTP(userName, ttpAddress.peerPublicKey!!)
+    }
+    override fun connect( // send your share to a connected TTP
         userName: String,
         secretShare: ByteArray,
         nameTTP: String
     ) {
 
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-        Log.i("adr5",ttpAddress.toString())
-
         community.connectAtTTP(userName, secretShare, ttpAddress.peerPublicKey!!)
     }
 
@@ -153,7 +159,6 @@ class IPV8CommunicationProtocol(
     }
 
     fun scopePeers() {
-        Log.i("adr","initating scope from ${getParticipantRole()}")
         community.scopePeers(participant.name, getParticipantRole(), participant.publicKey.toBytes())
     }
 
@@ -186,7 +191,7 @@ class IPV8CommunicationProtocol(
         val publicKey = participant.group.gElementFromBytes(message.publicKeyBytes)
         val address = Address(message.name, message.role, publicKey, message.peerPublicKey)
         addressBookManager.insertAddress(address)
-        participant.onDataChangeCallback?.invoke(null)
+        participant.onDataChangeCallback?.invoke("addr_mess_recv by $message.name") // participant has received an address
     }
 
     private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
@@ -257,16 +262,41 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleRegistrationMessage(message: TTPRegistrationMessage) {
-        if (participant !is TTP) {
+        if (participant !is REGTTP) {
+            return
+        }
+
+        val ttp = participant as REGTTP
+        val publicKey = ttp.group.gElementFromBytes(message.userPKBytes)
+        ttp.registerUser(message.userName, publicKey)
+    }
+    private fun handleShareRequestMessage(message: ShareRequestMessage) {
+        // When receiving a Share Request and you're either a register or a TTP, send a response
+        if (participant !is REGTTP && participant !is TTP) {
             return
         }
 
         val ttp = participant as TTP
-        val publicKey = ttp.group.gElementFromBytes(message.userPKBytes)
-        ttp.registerUser(message.userName, publicKey)
+        val share = ttp.getSharefromTTP(message.userName)
+        if (share != null){
+            val shareRequestResponse = ShareResponsePayload(message.userName,share,ttp.name)
+            community.sendShareRequestResponsePacket(message.peer,shareRequestResponse)
+        }
+
     }
-    private fun handleConnectionMessage(message: TTPConnectionMessage) {
-        if (participant !is TTP) {
+    private fun handleShareResponseMessage(message: ShareResponseMessage){ // When receiving a Share Response, trigger the callback
+        if(participant is User && message.userName == participant.name){
+            // partial secret share has been returned.
+
+            (participant as User).my_shares.add(Pair(message.sender,message.secretShare))
+            participant.onDataChangeCallback?.invoke("secret_share_recv " + message.secretShare.toString())
+        }
+        // TODO: add bank logic here
+        return
+
+    }
+    private fun handleConnectionMessage(message: TTPConnectionMessage) { // Handle TTP Connection message by adding the share to the participants secret share library.
+        if (participant !is REGTTP && participant !is TTP) {
             return
         }
 
@@ -275,7 +305,6 @@ class IPV8CommunicationProtocol(
     }
     private fun handleAddressRequestMessage(message: AddressRequestMessage) {
         val role = getParticipantRole()
-        Log.i("adr","sending back the following participant: " + participant.name + " " + role)
         community.sendAddressReply(participant.name, role, participant.publicKey.toBytes(), message.requestingPeer)
     }
 
@@ -293,6 +322,9 @@ class IPV8CommunicationProtocol(
     private fun handleRequestMessage(message: ICommunityMessage) {
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
+            is ShareRequestMessage -> handleShareRequestMessage(message)
+            is ShareResponseMessage -> handleShareResponseMessage(message)
+            is TTPConnectionMessage -> handleConnectionMessage(message)
             is AddressRequestMessage -> handleAddressRequestMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)
             is BlindSignatureRandomnessRequestMessage -> handleBlindSignatureRandomnessRequest(message)

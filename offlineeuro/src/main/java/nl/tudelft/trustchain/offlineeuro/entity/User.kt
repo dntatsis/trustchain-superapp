@@ -7,7 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
-
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 class User(
     name: String,
     group: BilinearGroup,
@@ -20,8 +20,9 @@ class User(
     val connected: MutableList<String> = mutableListOf(),
     var identified: Boolean = false
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
+    lateinit var scheme: Scheme
     val wallet: Wallet
-
+    val my_shares: MutableList<Pair<String,ByteArray>> = mutableListOf()
     init {
         communicationProtocol.participant = this
         this.group = group

@@ -36,8 +36,6 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         val group = BilinearGroup(PairingTypes.FromFile, context = context)
         val addressBookManager = AddressBookManager(context, group)
         iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-        Log.i("adr_0",community.toString())
-        Log.i("adr_0",context.toString())
 
         // create N TTPs, first one being an registration TTP
         val n = 3
@@ -186,7 +184,8 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         if (this::ttpList.isInitialized) {
             requireActivity().runOnUiThread {
                 val context = requireContext()
-                CallbackLibrary.ttpCallback(context, message, requireView(), ttpList[0])
+                // TODO: figure out how to deal with added TTPhome context!
+                //CallbackLibrary.ttpCallback(context, message, requireView(), ttpList[0], this)
             }
         }
     }

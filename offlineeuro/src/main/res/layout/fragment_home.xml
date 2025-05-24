@@ -34,7 +34,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="TTP"
-                android:id="@+id/JoinAsTTP"/>
+                android:id="@+id/JoinAsTTPButton"/>
 
             <Button
                 android:layout_width="match_parent"

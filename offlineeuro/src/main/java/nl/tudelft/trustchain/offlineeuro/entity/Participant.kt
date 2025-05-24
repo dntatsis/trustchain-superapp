@@ -20,7 +20,6 @@ abstract class Participant(
     lateinit var crs: CRS
 
     fun setUp() {
-        Log.i("adr","setting up")
         getGroupDescriptionAndCRS()
         generateKeyPair()
         registerAtTTP()

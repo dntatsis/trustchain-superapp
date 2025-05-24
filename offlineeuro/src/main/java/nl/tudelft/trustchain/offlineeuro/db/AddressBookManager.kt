@@ -46,8 +46,6 @@ class AddressBookManager(
     }
 
     fun getAddressByName(name: String): Address {
-        val all = queries.getAllAddresses(addressMapper).executeAsList()
-        Log.i("adr", "All entries: $all")
         return queries.getAddressByName(
             name,
             addressMapper

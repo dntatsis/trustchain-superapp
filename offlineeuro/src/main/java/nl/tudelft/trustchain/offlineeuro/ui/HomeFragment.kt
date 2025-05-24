@@ -20,8 +20,8 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         super.onViewCreated(view, savedInstanceState)
         activity?.title = "Home"
 
-        view.findViewById<Button>(R.id.JoinAsTTP).setOnClickListener {
-            findNavController().navigate(R.id.nav_home_ttphome)
+        view.findViewById<Button>(R.id.JoinAsTTPButton).setOnClickListener {
+            findNavController().navigate(R.id.nav_home_choose_ttp_role )
         }
 
         view.findViewById<Button>(R.id.JoinAsBankButton).setOnClickListener {

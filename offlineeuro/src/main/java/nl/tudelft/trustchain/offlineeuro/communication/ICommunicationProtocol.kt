@@ -13,6 +13,11 @@ interface ICommunicationProtocol {
 
     fun getGroupDescriptionAndCRS()
 
+    fun requestShare(
+        userName: String,
+        ttpname: String
+    )
+
     fun register(
         userName: String,
         publicKey: Element,

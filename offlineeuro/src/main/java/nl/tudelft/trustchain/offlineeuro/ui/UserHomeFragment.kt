@@ -35,13 +35,11 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val userName: String = user.name
             val welcomeTextView = view.findViewById<TextView>(R.id.user_home_welcome_text)
             welcomeTextView.text = welcomeTextView.text.toString().replace("_name_", userName)
-            Log.i("adr_reg",userName)
 
         } else {
             activity?.title = "User"
 
             val userName: String? = arguments?.getString("userName")
-            Log.i("adr_reg_null",userName!!)
 
             val welcomeTextView = view.findViewById<TextView>(R.id.user_home_welcome_text)
             welcomeTextView.text = welcomeTextView.text.toString().replace("_name_", userName!!)
@@ -51,21 +49,17 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val addressBookManager = AddressBookManager(context, group)
             communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
             try {
-                user = User(userName, group, context, null, communicationProtocol, onDataChangeCallback = onUserDataChangeCallBack)
-                Log.i("adr_user", "user init successful, scoping peers...: $user")
+                user = User(userName, group, context, null, communicationProtocol, onDataChangeCallback = onUserDataChangeCallBack, Identification_Value = "my_secret")
                 communicationProtocol.scopePeers()
 
             } catch (e: Throwable) {
                 Log.e("adr_user", "User creation failed", e)
-                Toast.makeText(context, "User creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-            Log.i("adr_user",communicationProtocol.addressBookManager.getAllAddresses().toString())
         }
 
         val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
 
-        fun updateConnectedInfo(view: View) {
-            Log.i("adr_found", "im in")
+        fun updateConnectedInfo(view: View) { // update the info of the connected TTPs, (number and entries)
 
             val updatedText = connectedTemplate
                 .replace("_size_", user.connected.size.toString())
@@ -78,6 +72,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
 
         view.findViewById<Button>(R.id.user_home_reset_button).setOnClickListener {
+            communicationProtocol.scopePeers()
             communicationProtocol.addressBookManager.clear()
             user.reset()
             val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
@@ -86,38 +81,35 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         }
 
 
+        view.findViewById<Button>(R.id.request_shares).setOnClickListener { // request your share from all connected TTPs
+            val connectedNames = user.connected.map { it }
+            for (nameConnected in connectedNames) {
+                communicationProtocol.requestShare(user.name, nameConnected)
+            }
+        }
 
-        view.findViewById<Button>(R.id.user_connect_ttps).setOnClickListener {
-            val n = 3
+        view.findViewById<Button>(R.id.user_connect_ttps).setOnClickListener { // Connect up to n TTPs, and send your shares
+            val n = 2 // TODO: make global
             val k = 2
             val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-            Log.i("adr", addresses.toString())
             val connectedNames = user.connected.map { it }
             for (address in addresses) {
                 if ((address.type == Role.REG_TTP || address.type == Role.TTP) && address.name !in connectedNames){
-                    // add element
-                    Log.i("adr_found", address.toString())
+                    // add element to connected TTP list
                     user.connected.add(address.name)
-                    Log.i("adr_found", user.connected.toString())
 
                     if (user.connected.size >= n){
                         // if n connections, secret share
-                        val scheme = Scheme(SecureRandom(), n, k)
-                        val parts = scheme.split(user.Identification_Value.toByteArray(Charsets.UTF_8))
+                        user.scheme = Scheme(SecureRandom(), n, k)
+                        val parts = user.scheme.split(user.Identification_Value.toByteArray(Charsets.UTF_8))
                         val partialParts = parts.entries.take(n).associate { it.toPair() }
                         val partsList = partialParts.values.toList()
-                        Log.i("adr1", user.connected.toString())
-                        Log.i("adr2", partsList.toString())
+                        user.connected.sort() // sort alphabetically for recovery
 
                         for (i in user.connected.indices) {
-                            Log.i("adr2", partsList[i].toString())
-                            Log.i("adr3", user.connected[i])
-                            Log.i("adr4", user.name)
 
                             communicationProtocol.connect(user.name, partsList[i]!!, user.connected[i])
                         }
-
-                        Log.i("adr", partialParts.toString())
                         break
                     }
 
