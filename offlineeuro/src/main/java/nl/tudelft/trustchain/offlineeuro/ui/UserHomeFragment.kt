@@ -64,6 +64,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                         onDataChangeCallback = onUserDataChangeCallBack,
                         Identification_Value = "my_secret"
                     )
+                    user.setUp()
                     communicationProtocol.scopePeers()
 
                 } catch (e: Throwable) {
