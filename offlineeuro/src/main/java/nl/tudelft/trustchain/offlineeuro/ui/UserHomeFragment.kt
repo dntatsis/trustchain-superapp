@@ -7,20 +7,24 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import java.security.SecureRandom
 
 class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
     private lateinit var user: User
     private lateinit var community: OfflineEuroCommunity
     private lateinit var communicationProtocol: IPV8CommunicationProtocol
-
+    private lateinit var connectedTemplate: String
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?
@@ -34,13 +38,11 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val welcomeTextView = view.findViewById<TextView>(R.id.user_home_welcome_text)
             welcomeTextView.text = welcomeTextView.text.toString().replace("_name_", userName)
 
-            val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
-            listTextView.text = listTextView.text.toString().replace("_size_", user.connected.size.toString())
-            listTextView.text = listTextView.text.toString().replace("_vals_", user.connected.toString())
-
         } else {
             activity?.title = "User"
+
             val userName: String? = arguments?.getString("userName")
+
             val welcomeTextView = view.findViewById<TextView>(R.id.user_home_welcome_text)
             welcomeTextView.text = welcomeTextView.text.toString().replace("_name_", userName!!)
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
@@ -48,48 +50,115 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
             communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-            try {
-                user = User(userName, group, context, null, communicationProtocol, onDataChangeCallback = onUserDataChangeCallBack)
-                communicationProtocol.scopePeers()
-            } catch (e: Exception) {
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+
+            var connectedSuccessfully = true;
+            // Make connection and waiting for group description and crs not block the main thread
+            lifecycleScope.launch {
+                try {
+                    user = User(
+                        userName,
+                        group,
+                        context,
+                        null,
+                        communicationProtocol,
+                        onDataChangeCallback = onUserDataChangeCallBack,
+                        Identification_Value = "my_secret"
+                    )
+                    user.setup()
+                    communicationProtocol.scopePeers()
+
+                } catch (e: Throwable) {
+                    Toast.makeText(
+                        context,
+                        "${e.message}: Failed to connect to a TTP",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    Log.e("adr_user", "User creation failed", e)
+                    connectedSuccessfully = false
+                }
             }
+
+            if (!connectedSuccessfully) return
         }
+
+        val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
+
+        fun updateConnectedInfo(view: View) { // update the info of the connected TTPs, (number and entries)
+
+            val updatedText = connectedTemplate
+                .replace("_size_", user.connected.size.toString())
+                .replace("_vals_", user.connected.toString())
+            listTextView.text = updatedText
+        }
+
+        connectedTemplate = listTextView.text.toString()
+        updateConnectedInfo(view)
+
 
         view.findViewById<Button>(R.id.user_home_reset_button).setOnClickListener {
-            communicationProtocol.addressBookManager.clear()
-            user.reset()
-            val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
-            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-            TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
+            lifecycleScope.launch {
+                communicationProtocol.scopePeers()
+                communicationProtocol.addressBookManager.clear()
+                user.reset()
+                val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
+                val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
+            }
         }
 
-        view.findViewById<Button>(R.id.user_connect_ttps).setOnClickListener {
-            val n = 3
+
+        view.findViewById<Button>(R.id.request_shares).setOnClickListener { // request your share from all connected TTPs
+            val connectedNames = user.connected.map { it }
+            for (nameConnected in connectedNames) {
+                communicationProtocol.requestShare(user.name, nameConnected)
+            }
+        }
+
+        view.findViewById<Button>(R.id.user_connect_ttps).setOnClickListener { // Connect up to n TTPs, and send your shares
+            val n = 2 // TODO: make global
             val k = 2
             val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-            Log.i("adr", addresses.toString())
             val connectedNames = user.connected.map { it }
             for (address in addresses) {
-                if ((address.type == Role.ID_TTP || address.type == Role.TTP) && address.name !in connectedNames)
-                    // add element
-                    print("hi")
+                if ((address.type == Role.REG_TTP || address.type == Role.TTP) && address.name !in connectedNames){
+                    // add element to connected TTP list
                     user.connected.add(address.name)
-                    if (user.connected.size >= n)
-                        // if n connections, secret share
-                        val scheme = Scheme(SecureRandom(), n, k)
-                        val parts = scheme.split(user.Identification_Value)
-                        val partialParts = parts.entries.take(2).associate { it.toPair() }
-                        Log.i("adr", partialParts.toString())
-                        print("Hi!")
-                        // communicationProtocol.connect(user.name,partialParts[i])
-                        break
-            }
 
+                    if (user.connected.size >= n){
+                        // if n connections, secret share
+                        user.scheme = Scheme(SecureRandom(), n, k)
+                        val parts = user.scheme.split(user.Identification_Value.toByteArray(Charsets.UTF_8))
+                        val partialParts = parts.entries.take(n).associate { it.toPair() }
+                        val partsList = partialParts.values.toList()
+                        user.connected.sort() // sort alphabetically for recovery
+
+                        for (i in user.connected.indices) {
+
+                            communicationProtocol.connect(user.name, partsList[i]!!, user.connected[i])
+                        }
+                        break
+                    }
+
+                }
+            }
+            updateConnectedInfo(view)
         }
+
         view.findViewById<Button>(R.id.user_home_sync_addresses).setOnClickListener {
             communicationProtocol.scopePeers()
         }
+
+        // Set up Shamir algo demo
+        /* view.findViewById<Button>(R.id.shamir_button).setOnClickListener {
+            val secret = "this_is_my_private_id".toByteArray(Charsets.UTF_8)
+            val scheme = Scheme(SecureRandom(), 3, 2)
+            val parts = scheme.split(secret)
+            val partialParts = parts.entries.take(2).associate { it.toPair() }
+            val recovered = scheme.join(partialParts)
+            val recoveredString = String(recovered, Charsets.UTF_8)
+            Toast.makeText(context, "Recovered: $recoveredString", Toast.LENGTH_LONG).show()
+        } */
+
         val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
         val addresses = communicationProtocol.addressBookManager.getAllAddresses()
         TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())

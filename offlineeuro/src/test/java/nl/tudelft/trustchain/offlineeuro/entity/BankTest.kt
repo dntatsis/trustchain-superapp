@@ -38,11 +38,11 @@ class BankTest {
                 BilinearGroupCRSReplyMessage(
                     ttpGroup.toGroupElementBytes(),
                     crs.toCRSBytes(),
-                    AddressMessage("TTP", Role.TTP, "SomeBytes".toByteArray(), "More Bytes".toByteArray())
+                    AddressMessage("TTP", Role.REG_TTP, "SomeBytes".toByteArray(), "More Bytes".toByteArray())
                 )
             )
         }
-        val ttpAddress = Address("TTP", Role.TTP, ttpGroup.generateRandomElementOfG(), "More Bytes".toByteArray())
+        val ttpAddress = Address("TTP", Role.REG_TTP, ttpGroup.generateRandomElementOfG(), "More Bytes".toByteArray())
 
         val publicKeyCaptor = argumentCaptor<ByteArray>()
 

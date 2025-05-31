@@ -15,8 +15,8 @@
             android:id="@+id/nav_home_userhome"
             app:destination="@id/userHomeFragment" />
         <action
-            android:id="@+id/nav_home_ttphome"
-            app:destination="@id/TTPHomeFragment" />
+            android:id="@+id/nav_home_choose_ttp_role"
+            app:destination="@id/ChooseTTPRoleFragment" />
         <action
             android:id="@+id/nav_home_all_roles_home"
             app:destination="@id/allRolesFragment" />
@@ -45,11 +45,28 @@
             app:argType="string" />
     </fragment>
     <fragment
-        android:id="@+id/TTPHomeFragment"
-        android:name="nl.tudelft.trustchain.offlineeuro.ui.TTPHomeFragment"
-        android:label="TTPHomeFragment" />
+        android:id="@+id/ChooseTTPRoleFragment"
+        android:name="nl.tudelft.trustchain.offlineeuro.ui.ChooseTTPRoleFragment"
+        android:label="ChooseTTPRoleFragment" >
+        <action
+            android:id="@+id/nav_choose_ttp_ttphome"
+            app:destination="@id/TTPHomeFragment" />
+        <action
+            android:id="@+id/nav_choose_ttp_ttpreg"
+            app:destination="@id/REGTTPHomeFragment" />
+    </fragment>
     <fragment
         android:id="@+id/allRolesFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.AllRolesFragment"
         android:label="AllRolesFragment" />
+
+    <fragment
+        android:id="@+id/REGTTPHomeFragment"
+        android:name="nl.tudelft.trustchain.offlineeuro.ui.REGTTPHomeFragment"
+        android:label="REGTTPHomeFragment" />
+
+    <fragment
+        android:id="@+id/TTPHomeFragment"
+        android:name="nl.tudelft.trustchain.offlineeuro.ui.TTPHomeFragment"
+        android:label="TTPHomeFragment" />
 </navigation>

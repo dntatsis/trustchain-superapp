@@ -12,8 +12,10 @@ class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommun
             TransactionMessage::class.java,
             TTPRegistrationMessage::class.java,
             FraudControlRequestMessage::class.java,
-            TTPConnectionMessage::class.java
-        )
+            TTPConnectionMessage::class.java,
+            ShareRequestMessage::class.java,
+            ShareResponseMessage::class.java
+            )
 
     override fun add(element: ICommunityMessage): Boolean {
         return if (isRequestMessageType(element)) {
