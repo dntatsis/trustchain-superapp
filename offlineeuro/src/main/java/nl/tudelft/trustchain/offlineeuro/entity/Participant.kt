@@ -73,5 +73,5 @@ abstract class Participant(
         publicKeySender: Element
     ): String
 
-    abstract fun reset()
+    abstract suspend fun reset()
 }

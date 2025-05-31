@@ -158,10 +158,10 @@ class Bank(
         return transactionResult.description
     }
 
-    override fun reset() {
+    override suspend fun reset() {
         randomizationElementMap.clear()
         withdrawUserRandomness.clear()
         depositedEuroManager.clearDepositedEuros()
-        //setUp()
+        setUp()
     }
 }

@@ -107,7 +107,7 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
         }
     }
 
-    override fun reset() {
+    override suspend fun reset() {
         registeredUserManager.clearAllRegisteredUsers()
     }
 }

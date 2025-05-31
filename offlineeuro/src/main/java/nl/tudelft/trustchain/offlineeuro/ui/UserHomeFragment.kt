@@ -64,7 +64,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                         onDataChangeCallback = onUserDataChangeCallBack,
                         Identification_Value = "my_secret"
                     )
-                    user.setUp()
+                    user.setup()
                     communicationProtocol.scopePeers()
 
                 } catch (e: Throwable) {
@@ -96,12 +96,14 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
 
         view.findViewById<Button>(R.id.user_home_reset_button).setOnClickListener {
-            communicationProtocol.scopePeers()
-            communicationProtocol.addressBookManager.clear()
-            user.reset()
-            val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
-            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-            TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
+            lifecycleScope.launch {
+                communicationProtocol.scopePeers()
+                communicationProtocol.addressBookManager.clear()
+                user.reset()
+                val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
+                val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
+            }
         }
 
 
