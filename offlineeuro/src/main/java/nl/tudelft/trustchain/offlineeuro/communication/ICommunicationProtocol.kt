@@ -11,7 +11,7 @@ import java.math.BigInteger
 interface ICommunicationProtocol {
     var participant: Participant
 
-    fun getGroupDescriptionAndCRS()
+    suspend fun getGroupDescriptionAndCRS()
 
     fun requestShare(
         userName: String,

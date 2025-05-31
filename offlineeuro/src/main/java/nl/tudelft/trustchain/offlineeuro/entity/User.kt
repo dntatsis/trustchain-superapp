@@ -14,7 +14,6 @@ class User(
     context: Context?,
     private var walletManager: WalletManager? = null,
     communicationProtocol: ICommunicationProtocol,
-    runSetup: Boolean = true,
     onDataChangeCallback: ((String?) -> Unit)? = null,
     var Identification_Value: String = "",
     val connected: MutableList<String> = mutableListOf(),
@@ -27,18 +26,20 @@ class User(
         communicationProtocol.participant = this
         this.group = group
 
-        if (runSetup) {
-            setUp()
-        } else {
-            generateKeyPair()
-            // registerAtTTP()
-
-        }
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
         }
 
         wallet = Wallet(privateKey, publicKey, walletManager!!)
+    }
+
+    suspend fun setup(runSetup: Boolean = true) {
+        if (runSetup) {
+            setUp()
+        } else {
+            generateKeyPair()
+            // registerAtTTP()
+        }
     }
 
     fun sendDigitalEuroTo(nameReceiver: String): String {
@@ -105,6 +106,7 @@ class User(
     override fun reset() {
         randomizationElementMap.clear()
         walletManager!!.clearWalletEntries()
-        setUp()
+
+        //setUp()
     }
 }

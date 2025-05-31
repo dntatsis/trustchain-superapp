@@ -2,6 +2,8 @@ package nl.tudelft.trustchain.offlineeuro.communication
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
@@ -118,7 +120,11 @@ class IPV8CommunicationProtocolTest {
         `when`(ttp.group).thenReturn(groupDescription)
         `when`(ttp.crs).thenReturn(ttpCRS.first)
 
-        iPV8CommunicationProtocol.getGroupDescriptionAndCRS()
+        runBlocking {
+            launch {
+                iPV8CommunicationProtocol.getGroupDescriptionAndCRS()
+            }
+        }
         val groupDescription = ttp.group
         val crs = ttp.crs
         Assert.assertEquals(this.groupDescription.pairing, groupDescription.pairing)

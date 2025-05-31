@@ -40,6 +40,9 @@ import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import java.math.BigInteger
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+
 
 class IPV8CommunicationProtocol(
     val addressBookManager: AddressBookManager,
@@ -55,11 +58,10 @@ class IPV8CommunicationProtocol(
     private val timeOutInMS = 10000
     override lateinit var participant: Participant
 
-    override fun getGroupDescriptionAndCRS() {
+    override suspend fun getGroupDescriptionAndCRS() {
         community.getGroupDescriptionAndCRS()
         val message =
-            waitForMessage(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
-
+            waitForMessageAsync(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
         participant.group.updateGroupElements(message.groupDescription)
         val crs = message.crs.toCRS(participant.group)
         participant.crs = crs
@@ -167,6 +169,24 @@ class IPV8CommunicationProtocol(
         group: BilinearGroup
     ): Element {
         return addressBookManager.getAddressByName(name).publicKey
+    }
+
+    private suspend fun waitForMessageAsync(messageType: CommunityMessageType): ICommunityMessage {
+        var loops = 0
+
+        while (!community.messageList.any { it.messageType == messageType }) {
+            if (loops * sleepDuration >= timeOutInMS) {
+                throw Exception("TimeOut")
+            }
+            delay(sleepDuration)
+            loops++
+        }
+
+        val message =
+            community.messageList.first { it.messageType == messageType }
+        community.messageList.remove(message)
+
+        return message
     }
 
     private fun waitForMessage(messageType: CommunityMessageType): ICommunityMessage {

@@ -7,6 +7,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
@@ -48,13 +50,34 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
             communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-            try {
-                user = User(userName, group, context, null, communicationProtocol, onDataChangeCallback = onUserDataChangeCallBack, Identification_Value = "my_secret")
-                communicationProtocol.scopePeers()
 
-            } catch (e: Throwable) {
-                Log.e("adr_user", "User creation failed", e)
+            var connectedSuccessfully = true;
+            // Make connection and waiting for group description and crs not block the main thread
+            lifecycleScope.launch {
+                try {
+                    user = User(
+                        userName,
+                        group,
+                        context,
+                        null,
+                        communicationProtocol,
+                        onDataChangeCallback = onUserDataChangeCallBack,
+                        Identification_Value = "my_secret"
+                    )
+                    communicationProtocol.scopePeers()
+
+                } catch (e: Throwable) {
+                    Toast.makeText(
+                        context,
+                        "${e.message}: Failed to connect to a TTP",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    Log.e("adr_user", "User creation failed", e)
+                    connectedSuccessfully = false
+                }
             }
+
+            if (!connectedSuccessfully) return
         }
 
         val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
