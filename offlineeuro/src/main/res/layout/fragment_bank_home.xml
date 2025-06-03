@@ -5,6 +5,14 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <Button
+        android:id="@+id/bank_get_identity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Get identity"
+        tools:layout_editor_absoluteX="148dp"
+        tools:layout_editor_absoluteY="667dp" />
+
     <LinearLayout
         android:id="@+id/ttp_home_layout"
         android:layout_width="match_parent"

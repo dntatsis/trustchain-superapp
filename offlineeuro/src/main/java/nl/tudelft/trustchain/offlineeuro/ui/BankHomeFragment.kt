@@ -2,6 +2,8 @@ package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
+import android.widget.Toast
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
@@ -40,6 +42,11 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
                     depositedEuroManager,
                     onDataChangeCallback = onDataChangeCallBack
                 )
+        }
+        view.findViewById<Button>(R.id.bank_get_identity).setOnClickListener {
+            Toast.makeText(requireContext(), "Test", Toast.LENGTH_LONG)
+                .show()
+            iPV8CommunicationProtocol.scopePeers()
         }
         onDataChangeCallBack(null)
     }
