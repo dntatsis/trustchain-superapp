@@ -28,10 +28,6 @@ class Bank(
         this.group = group
     }
 
-    suspend fun setup() {
-        setUp()
-    }
-
     fun getBlindSignatureRandomness(userPublicKey: Element): Element {
         if (withdrawUserRandomness.containsKey(userPublicKey)) {
             val randomness = withdrawUserRandomness[userPublicKey]!!
