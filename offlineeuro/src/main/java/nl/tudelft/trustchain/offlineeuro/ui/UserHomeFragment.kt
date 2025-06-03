@@ -50,7 +50,8 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
             communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-
+            val syncbutton = view.findViewById<Button>(R.id.sync_user_button)
+            syncbutton.visibility = View.GONE
             var connectedSuccessfully = true;
             // Make connection and waiting for group description and crs not block the main thread
             lifecycleScope.launch {
@@ -61,12 +62,13 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                         context,
                         null,
                         communicationProtocol,
-                        onDataChangeCallback = onUserDataChangeCallBack,
+                        onDataChangeCallback = null,
                         Identification_Value = "my_secret"
                     )
                     user.setup()
-                    communicationProtocol.scopePeers()
-
+                    //communicationProtocol.scopePeers()
+                    syncbutton.visibility = View.VISIBLE
+                    user.onDataChangeCallback = onUserDataChangeCallBack
                 } catch (e: Throwable) {
                     Toast.makeText(
                         context,
@@ -95,14 +97,9 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         updateConnectedInfo(view)
 
 
-        view.findViewById<Button>(R.id.user_home_reset_button).setOnClickListener {
+        view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
             lifecycleScope.launch {
                 communicationProtocol.scopePeers()
-                communicationProtocol.addressBookManager.clear()
-                user.reset()
-                val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
-                val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-                TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
             }
         }
 
@@ -133,7 +130,6 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                         user.connected.sort() // sort alphabetically for recovery
 
                         for (i in user.connected.indices) {
-
                             communicationProtocol.connect(user.name, partsList[i]!!, user.connected[i])
                         }
                         break
@@ -144,7 +140,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             updateConnectedInfo(view)
         }
 
-        view.findViewById<Button>(R.id.user_home_sync_addresses).setOnClickListener {
+        view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
             communicationProtocol.scopePeers()
         }
 
@@ -159,7 +155,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             Toast.makeText(context, "Recovered: $recoveredString", Toast.LENGTH_LONG).show()
         } */
 
-        val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
+        val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
         val addresses = communicationProtocol.addressBookManager.getAllAddresses()
         TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
         onUserDataChangeCallBack(null)

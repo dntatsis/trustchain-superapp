@@ -18,11 +18,22 @@ object CallbackLibrary {
     fun bankCallback(
         context: Context,
         message: String?,
+        communicationProtocol: IPV8CommunicationProtocol,
         view: View,
         bank: Bank
     ) {
         if (message != null) {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            if (message.startsWith("addr_mess_recv", 0, false)) { // handle message reception (new TTP)
+                // update TTP, user List
+                Log.i("adr", "received a peer for my address book")
+            }
+            val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
+            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+            Log.d("adr", "addressList is null: ${addressList == null}")
+            TableHelpers.addAddressesToTable(addressList, addresses, bank, context)
+            view.refreshDrawableState()
+
         }
         val table = view.findViewById<LinearLayout>(R.id.bank_home_deposited_list)
         TableHelpers.removeAllButFirstRow(table)
@@ -32,6 +43,7 @@ object CallbackLibrary {
     fun ttpCallback(
         context: Context,
         message: String?,
+        communicationProtocol: IPV8CommunicationProtocol,
         view: View,
         ttp: TTP,
         ttpHomeFragment: TTPHomeFragment
@@ -50,7 +62,12 @@ object CallbackLibrary {
                     .filter { it !in ttpInfo }
 
                 ttpInfo.addAll(allNames)
-                ttpHomeFragment.refreshOtherTTPsView(view, ttpInfo)
+                ttpHomeFragment.refreshOtherTTPsView(view, ttp.name,ttpInfo)
+
+                val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
+                val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                TableHelpers.addAddressesToTable(addressList, addresses, ttp, context)
+                view.refreshDrawableState()
 
             } else if (message.startsWith("secret_share_recv", 0, false)) { // handle message reception
 
@@ -65,6 +82,7 @@ object CallbackLibrary {
         context: Context,
         message: String?,
         view: View,
+        communicationProtocol: IPV8CommunicationProtocol,
         ttp: REGTTP,
         regttpHomeFragment: REGTTPHomeFragment
     ) {
@@ -82,15 +100,20 @@ object CallbackLibrary {
                     .filter { it !in ttpInfo }
 
                 ttpInfo.addAll(allNames)
-                regttpHomeFragment.refreshOtherTTPsView(view, ttpInfo)
+                regttpHomeFragment.refreshOtherTTPsView(view, ttp.name, ttpInfo)
 
                 // update users as well, since this is a registrar
 
                 val regUsers = commProt.addressBookManager.getAllAddresses()
-                    .filter { it.type == Role.User }
-                    .map { Triple(it.name, it.type.toString(), it.publicKey.toString()) }
+                    .filter { it.type == Role.User || it.type == Role.Bank }
+                    .map { Triple(it.type.toString(), it.name, it.publicKey.toString()) }
 
                 regttpHomeFragment.refreshRegisteredUsersView(view, regUsers)
+
+                val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
+                val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                TableHelpers.addAddressesToTable(addressList, addresses, ttp, context)
+                view.refreshDrawableState()
 
             } else if (message.startsWith("secret_share_recv", 0, false)) {
 
@@ -107,6 +130,7 @@ object CallbackLibrary {
     ) {
         val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
         val users = ttp.getRegisteredUsers()
+        Log.i("adr_updateuserlist",users.toString())
         TableHelpers.removeAllButFirstRow(table)
         TableHelpers.addRegisteredUsersToTable(table, users)
     }
@@ -141,12 +165,15 @@ object CallbackLibrary {
             else {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
+
+            val balanceField = view.findViewById<TextView>(R.id.user_home_balance)
+            balanceField.text = user.getBalance().toString()
+            val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
+            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+            Log.d("adr", "addressList is null: ${addressList == null}")
+            TableHelpers.addAddressesToTable(addressList, addresses, user, context)
+            view.refreshDrawableState()
+
         }
-        val balanceField = view.findViewById<TextView>(R.id.user_home_balance)
-        balanceField.text = user.getBalance().toString()
-        val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
-        val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-        TableHelpers.addAddressesToTable(addressList, addresses, user, context)
-        view.refreshDrawableState()
     }
 }

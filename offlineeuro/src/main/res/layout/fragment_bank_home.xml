@@ -5,13 +5,12 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <Button
-        android:id="@+id/bank_get_identity"
-        android:layout_width="wrap_content"
+    <include
+        android:id="@+id/ttp_home_button_layout"
+        layout="@layout/component_sync_button"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Get identity"
-        tools:layout_editor_absoluteX="148dp"
-        tools:layout_editor_absoluteY="667dp" />
+        app:layout_constraintBottom_toBottomOf="parent" />
 
     <LinearLayout
         android:id="@+id/ttp_home_layout"
@@ -42,6 +41,7 @@
             android:gravity="center_horizontal"
             android:layout_marginHorizontal="10dp"
             app:layout_constraintTop_toBottomOf="@id/ttp_home_layout">
+            <include layout="@layout/component_address_book" />
 
             <TextView
                 android:layout_width="wrap_content"

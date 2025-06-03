@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.content.Context
+import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.widget.Button
@@ -10,6 +11,7 @@ import android.widget.Toast
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
@@ -113,46 +115,47 @@ object TableHelpers {
     fun addAddressesToTable(
         table: LinearLayout,
         addresses: List<Address>,
-        user: User,
+        participant: Participant,
         context: Context
     ) {
         removeAllButFirstRow(table)
         for (address in addresses) {
-            table.addView(addressToTableRow(address, context, user))
+            table.addView(addressToTableRow(address, context, participant))
         }
     }
 
     private fun addressToTableRow(
         address: Address,
         context: Context,
-        user: User
+        participant: Participant
     ): LinearLayout {
         val tableRow = LinearLayout(context)
         tableRow.layoutParams = rowParams()
         tableRow.orientation = LinearLayout.HORIZONTAL
 
         val styledContext = ContextThemeWrapper(context, R.style.TableCell)
+        val roleField =
+            TextView(styledContext).apply {
+                layoutParams = layoutParams(0.2f)
+                text = address.type.toString()
+            }
         val nameField =
             TextView(styledContext).apply {
                 layoutParams = layoutParams(0.5f)
                 text = address.name
             }
 
-        val roleField =
+        val publicKeyField =
             TextView(styledContext).apply {
-                layoutParams = layoutParams(0.2f)
-                text = address.type.toString()
+                layoutParams = layoutParams(0.5f)
+                text = ((address.publicKey.toString()).take(10)) + "..."
             }
-        tableRow.addView(nameField)
         tableRow.addView(roleField)
 
-        if (address.type == Role.TTP || address.type == Role.REG_TTP) {
-            val actionField =
-                TextView(context).apply {
-                    layoutParams = layoutParams(0.8f)
-                }
-            tableRow.addView(actionField)
-        } else {
+        tableRow.addView(nameField)
+        tableRow.addView(publicKeyField)
+
+        if (participant is User){
             val buttonWrapper = LinearLayout(context)
             val params = layoutParams(0.8f)
             buttonWrapper.gravity = Gravity.CENTER_HORIZONTAL
@@ -170,21 +173,37 @@ object TableHelpers {
 
             when (address.type) {
                 Role.Bank -> {
-                    setBankActionButtons(mainActionButton, secondaryButton, address.name, user, context)
+                    setBankActionButtons(mainActionButton, secondaryButton, address.name, participant, context)
                 }
                 Role.User -> {
-                    setUserActionButtons(mainActionButton, secondaryButton, address.name, user, context)
+                    setUserActionButtons(mainActionButton, secondaryButton, address.name, participant, context)
+                }
+                Role.TTP -> {
+                    setTTPActionButtons(mainActionButton, secondaryButton, address.name, participant, context)
+                }
+                Role.REG_TTP -> {
+                    setTTPActionButtons(mainActionButton, secondaryButton, address.name, participant, context)
                 }
 
                 else -> {}
             }
 
             tableRow.addView(buttonWrapper)
-        }
 
+        }
         return tableRow
     }
+    fun setTTPActionButtons(
+        mainButton: Button,
+        secondaryButton: Button,
+        bankName: String,
+        user: User,
+        context: Context
+    ){ // TODO: Connect / request share
+        mainButton.text = "Connect"
+        secondaryButton.text = "Request Share"
 
+    }
     fun setBankActionButtons(
         mainButton: Button,
         secondaryButton: Button,

@@ -26,7 +26,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        val getIdentityButton = view.findViewById<Button>(R.id.bank_get_identity)
+        val getIdentityButton = view.findViewById<Button>(R.id.sync_user_button)
         getIdentityButton.setOnClickListener {
             Toast.makeText(requireContext(), "Test", Toast.LENGTH_LONG)
                 .show()
@@ -57,6 +57,9 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
                 getIdentityButton.visibility = View.VISIBLE
             }
         }
+        view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
+            iPV8CommunicationProtocol.scopePeers()
+        }
         onDataChangeCallBack(null)
     }
 
@@ -64,7 +67,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         if (this::bank.isInitialized) {
             requireActivity().runOnUiThread {
                 val context = requireContext()
-                CallbackLibrary.bankCallback(context, message, requireView(), bank)
+                CallbackLibrary.bankCallback(context, message, iPV8CommunicationProtocol, requireView(), bank)
             }
         }
     }

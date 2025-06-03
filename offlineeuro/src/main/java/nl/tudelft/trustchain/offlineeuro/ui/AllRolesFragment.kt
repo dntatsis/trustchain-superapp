@@ -160,7 +160,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     private val onBankDataChangeCallBack: (String?) -> Unit = { message ->
         if (this::bank.isInitialized) {
             requireActivity().runOnUiThread {
-                CallbackLibrary.bankCallback(requireContext(), message, requireView(), bank)
+                CallbackLibrary.bankCallback(requireContext(), message,iPV8CommunicationProtocol, requireView(), bank)
             }
         }
     }

@@ -75,7 +75,7 @@ class IPV8CommunicationProtocol(
     ) {
 
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-        community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+        community.registerAtTTP(userName, publicKey.toBytes(), getParticipantRole(), ttpAddress.peerPublicKey!!)
     }
 
     override fun requestShare( // send your request for a share
@@ -288,7 +288,14 @@ class IPV8CommunicationProtocol(
 
         val ttp = participant as REGTTP
         val publicKey = ttp.group.gElementFromBytes(message.userPKBytes)
-        ttp.registerUser(message.userName, publicKey)
+        if (message.role == Role.User){
+            Log.i("adr","received user registration in TTP")
+            ttp.registerUser(message.userName, publicKey)
+        }
+        else if(message.role == Role.Bank){
+            Log.i("adr","received bank registration in TTP")
+            ttp.registerUser(message.userName, publicKey)
+        }
     }
     private fun handleShareRequestMessage(message: ShareRequestMessage) {
         // When receiving a Share Request and you're either a register or a TTP, send a response
