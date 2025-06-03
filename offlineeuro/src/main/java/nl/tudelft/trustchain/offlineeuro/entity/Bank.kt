@@ -24,12 +24,12 @@ class Bank(
 
     init {
         communicationProtocol.participant = this
+        if (!runSetup) generateKeyPair()
         this.group = group
-        if (runSetup) {
-            setUp()
-        } else {
-            generateKeyPair()
-        }
+    }
+
+    suspend fun setup() {
+        setUp()
     }
 
     fun getBlindSignatureRandomness(userPublicKey: Element): Element {
@@ -158,7 +158,7 @@ class Bank(
         return transactionResult.description
     }
 
-    override fun reset() {
+    override suspend fun reset() {
         randomizationElementMap.clear()
         withdrawUserRandomness.clear()
         depositedEuroManager.clearDepositedEuros()

@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.community
 
+import android.util.Log
 import nl.tudelft.ipv8.Overlay
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainCommunity
@@ -19,6 +20,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMess
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
+import nl.tudelft.trustchain.offlineeuro.community.message.ShareRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPConnectionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
@@ -30,9 +32,12 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPaylo
 import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.FraudControlRequestPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.ShareRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPRegistrationPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPConnectionPayload
-
+import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.community.message.ShareResponseMessage
+import nl.tudelft.trustchain.offlineeuro.community.payload.ShareResponsePayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionDetailsPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizationElementsPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
@@ -64,6 +69,10 @@ object MessageID {
     const val FRAUD_CONTROL_REPLY = 23
 
     const val CONNECT_TO_TTP = 24
+
+    const val REQUEST_SHARE = 25
+
+    const val REQUEST_SHARE_RESPONSE = 26
 }
 
 class OfflineEuroCommunity(
@@ -101,9 +110,14 @@ class OfflineEuroCommunity(
 
         messageHandlers[MessageID.FRAUD_CONTROL_REQUEST] = ::onFraudControlRequestPacket
         messageHandlers[MessageID.FRAUD_CONTROL_REPLY] = ::onFraudControlReplyPacket
+
+        messageHandlers[MessageID.REQUEST_SHARE] = ::onShareRequestPacket
+        messageHandlers[MessageID.REQUEST_SHARE_RESPONSE] = ::onShareResponsePacket
+
     }
 
     fun getGroupDescriptionAndCRS() {
+
         val packet =
             serializePacket(
                 MessageID.GET_GROUP_DESCRIPTION_CRS,
@@ -152,7 +166,7 @@ class OfflineEuroCommunity(
         val groupElements = payload.bilinearGroupElements
         val crs = payload.crs
 
-        val ttpAddressMessage = AddressMessage("TTP", Role.TTP, payload.ttpPublicKey, peer.publicKey.keyToBin())
+        val ttpAddressMessage = AddressMessage("TTP", Role.REG_TTP, payload.ttpPublicKey, peer.publicKey.keyToBin()) // TODO: Get rid of hardcoded "TTP"s!
 
         val message = BilinearGroupCRSReplyMessage(groupElements, crs, ttpAddressMessage)
         addMessage(message)
@@ -176,6 +190,24 @@ class OfflineEuroCommunity(
 
         send(ttpPeer, registerPacket)
     }
+
+    fun requestSharefromTTP(
+        userName: String,
+        publicKeyTTP: ByteArray
+    ){
+        val ttpPeer = getPeerByPublicKeyBytes(publicKeyTTP) ?: throw Exception("TTP not found")
+
+        val registerPacket =
+            serializePacket(
+                MessageID.REQUEST_SHARE,
+                ShareRequestPayload(
+                    userName
+                )
+            )
+
+        send(ttpPeer, registerPacket)
+    }
+
     fun onGetConnectAtTTPPacket(packet: Packet) {
         val (peer, payload) = packet.getAuthPayload(TTPConnectionPayload)
         onGetConnectAtTTP(peer, payload)
@@ -193,12 +225,19 @@ class OfflineEuroCommunity(
                 userName,
                 secretShare
             )
-
         addMessage(message)
     }
     fun onGetRegisterAtTTPPacket(packet: Packet) {
         val (peer, payload) = packet.getAuthPayload(TTPRegistrationPayload)
         onGetRegisterAtTTP(peer, payload)
+    }
+    fun onShareRequestPacket(packet: Packet) {
+        val (peer, payload) = packet.getAuthPayload(ShareRequestPayload)
+        onGetShareRequestAtTTP(peer, payload)
+    }
+    fun onShareResponsePacket(packet: Packet) {
+        val (peer, payload) = packet.getAuthPayload(ShareResponsePayload)
+        onGetShareResponseAtTTP(peer, payload)
     }
     fun connectAtTTP(
         name: String,
@@ -237,6 +276,34 @@ class OfflineEuroCommunity(
         addMessage(message)
     }
 
+    fun sendShareRequestResponsePacket(
+        peer: Peer,
+        payload: ShareResponsePayload
+
+    ){
+        val registerPacket =
+            serializePacket(
+                MessageID.REQUEST_SHARE_RESPONSE,
+                payload
+            )
+
+        send(peer, registerPacket)
+    }
+    fun onGetShareRequestAtTTP(
+        peer: Peer,
+        payload: ShareRequestPayload
+    )  {
+        val message = ShareRequestMessage(payload.userName,peer)
+        addMessage(message)
+
+    }
+    fun onGetShareResponseAtTTP(peer: Peer,
+                                payload: ShareResponsePayload
+    )  {
+        val message = ShareResponseMessage(payload.userName,payload.secretShare,payload.sender)
+        addMessage(message)
+
+    }
     fun getBlindSignatureRandomness(
         userPublicKeyBytes: ByteArray,
         publicKeyBank: ByteArray
@@ -570,7 +637,6 @@ class OfflineEuroCommunity(
                     role
                 )
             )
-
         for (peer in getPeers()) {
             send(peer, addressPacket)
         }
@@ -587,8 +653,8 @@ class OfflineEuroCommunity(
     ) {
         val addressMessage = AddressMessage(payload.userName, payload.role, payload.publicKey, requestingPeer.publicKey.keyToBin())
         addMessage(addressMessage)
-
         val addressRequestMessage = AddressRequestMessage(requestingPeer)
+
         addMessage(addressRequestMessage)
     }
 

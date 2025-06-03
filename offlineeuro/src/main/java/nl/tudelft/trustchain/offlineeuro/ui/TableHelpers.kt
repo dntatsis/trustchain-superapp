@@ -146,7 +146,7 @@ object TableHelpers {
         tableRow.addView(nameField)
         tableRow.addView(roleField)
 
-        if (address.type == Role.TTP) {
+        if (address.type == Role.TTP || address.type == Role.REG_TTP) {
             val actionField =
                 TextView(context).apply {
                     layoutParams = layoutParams(0.8f)

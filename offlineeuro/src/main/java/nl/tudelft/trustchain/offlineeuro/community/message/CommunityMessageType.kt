@@ -27,4 +27,6 @@ enum class CommunityMessageType {
 
     FraudControlRequestMessage,
     FraudControlReplyMessage,
+    ShareRequestMessage, // User/Bank to TTP: "Please provide your share of participant x"
+    ShareResponseMessage, // TTP to User/Bank: "Here it is"
 }

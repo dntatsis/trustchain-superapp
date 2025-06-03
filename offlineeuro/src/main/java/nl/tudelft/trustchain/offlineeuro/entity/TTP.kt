@@ -2,11 +2,14 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.community.payload.TTPConnectionPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
+import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 
 
     open class TTP(
@@ -15,8 +18,9 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
     private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
+    private val connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
     onDataChangeCallback: ((String?) -> Unit)? = null,
-    private var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
+    var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val crsMap: Map<Element, Element>
 
@@ -29,27 +33,47 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
         generateKeyPair()
     }
 
+        fun getSharefromTTP(name: String): ByteArray? {
+            communicationProtocol.participant = this
+            for (i in this.connected_Users) {
+                if (i.first == name) {
+                    return i.second
+                }
+            }
+            return null
+        }
+
     fun registerUser(
         name: String,
         publicKey: Element
     ): Boolean {
         val result = registeredUserManager.addRegisteredUser(name, publicKey)
-        onDataChangeCallback?.invoke("Registered $name")
+        onDataChangeCallback?.invoke("1Registered $name")
         return result
     }
+
         fun connectUser(
             name: String,
             secretShare: ByteArray
         ): Boolean {
-            val result = registeredUserManager.addRegisteredUser(name, publicKey)
-            onDataChangeCallback?.invoke("Registered $name")
+            val result = connectedUserManager.addConnectedUser(name, secretShare)
+            // TODO: actually use database for this
+            val index = connected_Users.indexOfFirst { it.first == name }
+            if (index != -1) {
+                connected_Users[index] = name to secretShare  // update
+            } else {
+                connected_Users.add(name to secretShare)      // add
+            }
+            onDataChangeCallback?.invoke("secret_share_recv by $name")
             return result
         }
 
     fun getRegisteredUsers(): List<RegisteredUser> {
         return registeredUserManager.getAllRegisteredUsers()
     }
-
+        fun getConnectedUsers(): List<ConnectedUser> {
+            return connectedUserManager.getAllConnectedUsers()
+        }
     override fun onReceivedTransaction(
         transactionDetails: TransactionDetails,
         publicKeyBank: Element,
@@ -83,17 +107,18 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
         }
     }
 
-    override fun reset() {
+    override suspend fun reset() {
         registeredUserManager.clearAllRegisteredUsers()
     }
 }
 
-    class IDTTP (
-    name: String = "IDTTP",
+    class REGTTP (
+    name: String = "REGTTP",
     group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
     registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
+    connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
     onDataChangeCallback: ((String?) -> Unit)? = null
 
-) : TTP(name,group,communicationProtocol,context,registeredUserManager,onDataChangeCallback)
+) : TTP(name,group,communicationProtocol,context,registeredUserManager,connectedUserManager,onDataChangeCallback)
