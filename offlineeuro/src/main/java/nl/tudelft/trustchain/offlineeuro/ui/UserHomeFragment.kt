@@ -83,17 +83,6 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             if (!connectedSuccessfully) return
         }
 
-        val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
-
-        fun updateConnectedInfo(view: View) { // update the info of the connected TTPs, (number and entries)
-
-            val updatedText = connectedTemplate
-                .replace("_size_", user.connected.size.toString())
-                .replace("_vals_", user.connected.toString())
-            listTextView.text = updatedText
-        }
-
-        connectedTemplate = listTextView.text.toString()
         updateConnectedInfo(view)
 
 
@@ -105,10 +94,6 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
 
         view.findViewById<Button>(R.id.request_shares).setOnClickListener { // request your share from all connected TTPs
-            val connectedNames = user.connected.map { it }
-            for (nameConnected in connectedNames) {
-                communicationProtocol.requestShare(user.name, nameConnected)
-            }
         }
 
         view.findViewById<Button>(R.id.user_connect_ttps).setOnClickListener { // Connect up to n TTPs, and send your shares
@@ -144,17 +129,6 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             communicationProtocol.scopePeers()
         }
 
-        // Set up Shamir algo demo
-        /* view.findViewById<Button>(R.id.shamir_button).setOnClickListener {
-            val secret = "this_is_my_private_id".toByteArray(Charsets.UTF_8)
-            val scheme = Scheme(SecureRandom(), 3, 2)
-            val parts = scheme.split(secret)
-            val partialParts = parts.entries.take(2).associate { it.toPair() }
-            val recovered = scheme.join(partialParts)
-            val recoveredString = String(recovered, Charsets.UTF_8)
-            Toast.makeText(context, "Recovered: $recoveredString", Toast.LENGTH_LONG).show()
-        } */
-
         val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
         val addresses = communicationProtocol.addressBookManager.getAllAddresses()
         TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
@@ -170,9 +144,22 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                     message,
                     requireView(),
                     communicationProtocol,
-                    user
+                    user,
+                    this
                 )
             }
         }
     }
+
+    fun updateConnectedInfo(view: View) {
+        val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
+
+        val connectedTemplate = "List of connected TTPs (_size_): _vals_"
+        val updatedText = connectedTemplate
+            .replace("_size_", user.connected.size.toString())
+            .replace("_vals_", user.connected.joinToString(", "))
+
+        listTextView.text = updatedText
+    }
+
 }

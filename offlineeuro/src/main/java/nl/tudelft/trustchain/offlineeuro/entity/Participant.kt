@@ -19,10 +19,13 @@ abstract class Participant(
     val randomizationElementMap: HashMap<Element, Element> = hashMapOf()
     lateinit var crs: CRS
 
-    suspend fun setUp() {
+    suspend fun setUp(flag: Boolean = true) {
         getGroupDescriptionAndCRS()
-        generateKeyPair()
-        registerAtTTP()
+        if (flag){ // true if user or bank calls
+            generateKeyPair()
+            registerAtTTP()
+
+        }
     }
 
     suspend fun getGroupDescriptionAndCRS() {

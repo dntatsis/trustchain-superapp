@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
+import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
@@ -8,6 +9,7 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.TTPConnectionPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 
@@ -18,13 +20,13 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
     private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
-    private val connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
+    val connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
     onDataChangeCallback: ((String?) -> Unit)? = null,
     var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
-    val crsMap: Map<Element, Element>
-
-    init {
+        var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
+        val crsMap: Map<Element, Element>
+        init {
         communicationProtocol.participant = this
         this.group = group
         val generatedCRS = CRSGenerator.generateCRSMap(group)
@@ -51,7 +53,10 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
         onDataChangeCallback?.invoke("1Registered $name")
         return result
     }
-
+        suspend fun setup(){
+            Log.i("adr","bronto")
+            setUp(false)
+        }
         fun connectUser(
             name: String,
             secretShare: ByteArray

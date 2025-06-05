@@ -9,12 +9,15 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import nl.tudelft.trustchain.offlineeuro.R
+import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import java.security.SecureRandom
 
 object TableHelpers {
     fun removeAllButFirstRow(table: LinearLayout) {
@@ -196,12 +199,36 @@ object TableHelpers {
     fun setTTPActionButtons(
         mainButton: Button,
         secondaryButton: Button,
-        bankName: String,
+        ttpName: String,
         user: User,
         context: Context
-    ){ // TODO: Connect / request share
+    ) { // TODO: Connect / request share
         mainButton.text = "Connect"
         secondaryButton.text = "Request Share"
+        mainButton.setOnClickListener {
+            try {
+                val digitalEuro = user.connectToTTP(ttpName)
+                Toast.makeText(
+                    context,
+                    "Successfully connected",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+        secondaryButton.setOnClickListener {
+            try {
+                val digitalEuro = user.recoverShare(ttpName)
+                Toast.makeText(
+                    context,
+                    "Successfully recovered",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            }
+        }
 
     }
     fun setBankActionButtons(

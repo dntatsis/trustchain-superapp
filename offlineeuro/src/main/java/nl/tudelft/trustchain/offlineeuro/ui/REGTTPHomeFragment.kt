@@ -33,7 +33,6 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
             iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-            val n = 3
             regttp = REGTTP(
                 name = "TTP",
                 group = group,

@@ -1,13 +1,18 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
+import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
 import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
+import nl.tudelft.trustchain.offlineeuro.enums.Role
+import java.security.SecureRandom
+
 class User(
     name: String,
     group: BilinearGroup,
@@ -18,12 +23,15 @@ class User(
     onDataChangeCallback: ((String?) -> Unit)? = null,
     var Identification_Value: String = "",
     val connected: MutableList<String> = mutableListOf(),
-    var identified: Boolean = false
+    var identified: Boolean = false,
+    val n: Int = 2,
+    val k: Int = 2
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
+
     lateinit var scheme: Scheme
     var wallet: Wallet? = null
-    val my_shares: MutableList<Pair<String,ByteArray>> = mutableListOf()
-    init {
+    val myShares: MutableList<Pair<String,ByteArray>> =  MutableList(n) { Pair("", ByteArray(0)) }
+        init {
         communicationProtocol.participant = this
         this.group = group
 
@@ -57,6 +65,42 @@ class User(
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
         onDataChangeCallback?.invoke(result)
         return result
+    }
+
+    fun connectToTTP(ttpName: String) {
+        val communicationProtocol = communicationProtocol as IPV8CommunicationProtocol
+        val address = communicationProtocol.addressBookManager.getAddressByName(ttpName)
+        val connectedNames = connected.map { it }
+
+        if ((address.type == Role.REG_TTP || address.type == Role.TTP) && address.name !in connectedNames) {
+            // add element to connected TTP list
+            connected.add(address.name)
+            onDataChangeCallback?.invoke("connectedChange")
+            if (connected.size >= n) {
+                // if n connections, secret share
+                scheme = Scheme(SecureRandom(), n, k)
+                val parts =
+                    scheme.split(Identification_Value.toByteArray(Charsets.UTF_8))
+                val partialParts = parts.entries.take(n).associate { it.toPair() }
+                val partsList = partialParts.values.toList()
+                connected.sort() // sort alphabetically for recovery
+
+                for (i in connected.indices) {
+                    communicationProtocol.connect(name, partsList[i]!!, connected[i])
+                    myShares[i] = Pair(connected[i], ByteArray(0)) // myShares contains the ttp names for easier reconstruction
+                }
+
+            }
+
+        }
+        return
+    }
+
+    fun recoverShare(ttpName: String){
+        Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
+        communicationProtocol.requestShare(Schnorr.schnorrSignature(privateKey, (name + ":" + System.currentTimeMillis().toString()).toByteArray(), group),name,ttpName)
+        communicationProtocol.requestShare(Schnorr.schnorrSignature(privateKey, ("Alice:" + System.currentTimeMillis().toString()).toByteArray(), group),"Alice",ttpName) // fails - unless you're alice
+
     }
 
     fun withdrawDigitalEuro(bank: String): DigitalEuro {

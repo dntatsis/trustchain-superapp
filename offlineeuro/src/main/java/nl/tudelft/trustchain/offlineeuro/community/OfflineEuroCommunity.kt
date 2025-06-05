@@ -43,6 +43,7 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizat
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.math.BigInteger
@@ -194,7 +195,8 @@ class OfflineEuroCommunity(
     }
 
     fun requestSharefromTTP(
-        userName: String,
+        signature: SchnorrSignature,
+        name : String,
         publicKeyTTP: ByteArray
     ){
         val ttpPeer = getPeerByPublicKeyBytes(publicKeyTTP) ?: throw Exception("TTP not found")
@@ -203,7 +205,8 @@ class OfflineEuroCommunity(
             serializePacket(
                 MessageID.REQUEST_SHARE,
                 ShareRequestPayload(
-                    userName
+                    signature,
+                    name
                 )
             )
 
@@ -297,7 +300,7 @@ class OfflineEuroCommunity(
         peer: Peer,
         payload: ShareRequestPayload
     )  {
-        val message = ShareRequestMessage(payload.userName,peer)
+        val message = ShareRequestMessage(payload.signature, payload.name, peer)
         addMessage(message)
 
     }
@@ -641,6 +644,7 @@ class OfflineEuroCommunity(
                     role
                 )
             )
+        // Log.i("adr_peers",getPeers().toString())
         for (peer in getPeers()) {
             send(peer, addressPacket)
         }
