@@ -157,4 +157,5 @@ class BilinearGroup(
 
         return this.g == other.g && this.h == other.h && this.gt == other.gt && this.pairing == other.pairing
     }
+
 }

@@ -7,6 +7,7 @@ import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPConnectionPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
@@ -25,6 +26,7 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
     var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
         var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
+        lateinit var regCrs: CRS
         val crsMap: Map<Element, Element>
         init {
         communicationProtocol.participant = this
@@ -54,7 +56,6 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
         return result
     }
         suspend fun setup(){
-            Log.i("adr","bronto")
             setUp(false)
         }
         fun connectUser(

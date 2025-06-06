@@ -12,6 +12,7 @@ import java.util.UUID
 import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.security.SecureRandom
+import kotlin.math.sign
 
 class User(
     name: String,
@@ -98,9 +99,9 @@ class User(
 
     fun recoverShare(ttpName: String){
         Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
-        communicationProtocol.requestShare(Schnorr.schnorrSignature(privateKey, (name + ":" + System.currentTimeMillis().toString()).toByteArray(), group),name,ttpName)
-        communicationProtocol.requestShare(Schnorr.schnorrSignature(privateKey, ("Alice:" + System.currentTimeMillis().toString()).toByteArray(), group),"Alice",ttpName) // fails - unless you're alice
-
+        val signature = Schnorr.schnorrSignature(privateKey, (name + ":" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group)
+        communicationProtocol.requestShare(signature,name,ttpName)
+        communicationProtocol.requestShare(Schnorr.schnorrSignature(privateKey, ("Alice:" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group),"Alice",ttpName) // fails - unless you're alice
     }
 
     fun withdrawDigitalEuro(bank: String): DigitalEuro {

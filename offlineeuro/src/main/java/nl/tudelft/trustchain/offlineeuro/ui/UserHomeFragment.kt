@@ -7,6 +7,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.R
@@ -82,56 +83,12 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
             if (!connectedSuccessfully) return
         }
-
         updateConnectedInfo(view)
-
-
         view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
             lifecycleScope.launch {
                 communicationProtocol.scopePeers()
             }
         }
-
-
-        view.findViewById<Button>(R.id.request_shares).setOnClickListener { // request your share from all connected TTPs
-        }
-
-        view.findViewById<Button>(R.id.user_connect_ttps).setOnClickListener { // Connect up to n TTPs, and send your shares
-            val n = 2 // TODO: make global
-            val k = 2
-            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-            val connectedNames = user.connected.map { it }
-            for (address in addresses) {
-                if ((address.type == Role.REG_TTP || address.type == Role.TTP) && address.name !in connectedNames){
-                    // add element to connected TTP list
-                    user.connected.add(address.name)
-
-                    if (user.connected.size >= n){
-                        // if n connections, secret share
-                        user.scheme = Scheme(SecureRandom(), n, k)
-                        val parts = user.scheme.split(user.Identification_Value.toByteArray(Charsets.UTF_8))
-                        val partialParts = parts.entries.take(n).associate { it.toPair() }
-                        val partsList = partialParts.values.toList()
-                        user.connected.sort() // sort alphabetically for recovery
-
-                        for (i in user.connected.indices) {
-                            communicationProtocol.connect(user.name, partsList[i]!!, user.connected[i])
-                        }
-                        break
-                    }
-
-                }
-            }
-            updateConnectedInfo(view)
-        }
-
-        view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
-            communicationProtocol.scopePeers()
-        }
-
-        val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
-        val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-        TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
         onUserDataChangeCallBack(null)
     }
 
@@ -154,12 +111,29 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
     fun updateConnectedInfo(view: View) {
         val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
 
-        val connectedTemplate = "List of connected TTPs (_size_): _vals_"
-        val updatedText = connectedTemplate
+        var connectedTemplate = "List of connected TTPs (_size_): _vals_"
+        var updatedText = connectedTemplate
             .replace("_size_", user.connected.size.toString())
             .replace("_vals_", user.connected.joinToString(", "))
 
         listTextView.text = updatedText
+
+        val userConnectedTextView = view.findViewById<TextView>(R.id.user_home_connection_status)
+        connectedTemplate = "You are _connection_status_"
+        if(user.identified){
+             updatedText = connectedTemplate
+                .replace("_connection_status_", "identified!")
+            userConnectedTextView.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_green_dark))
+        }
+        else{
+            updatedText = connectedTemplate
+                .replace("_connection_status_", "unidentified!")
+            userConnectedTextView.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark))
+
+        }
+
+        userConnectedTextView.text = updatedText
+
     }
 
 }

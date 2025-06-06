@@ -45,6 +45,7 @@ import kotlinx.coroutines.delay
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
+import kotlin.math.abs
 
 
 class IPV8CommunicationProtocol(
@@ -65,14 +66,20 @@ class IPV8CommunicationProtocol(
         community.getGroupDescriptionAndCRS()
         val message =
             waitForMessageAsync(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
-        Log.i("adr","message received!")
+        Log.i("adr","message received!\ncontents are as follows:\ng:${message.groupDescription.g}\nh:${message.groupDescription.h}\ngt:${message.groupDescription.gt}")
         if(participant is TTP){ // copy regttp group into ttp
             (participant as TTP).regGroup.updateGroupElements(message.groupDescription)
+            val crs = message.crs.toCRS((participant as TTP).regGroup)
+            (participant as TTP).regCrs = crs
+            Log.d("adr_GROUPCHECK","g:${(participant as TTP).regGroup.g}, \nh:${(participant as TTP).regGroup.h}, \ngt:${(participant as TTP).regGroup.gt}")
+
         }
         else{
             participant.group.updateGroupElements(message.groupDescription)
             val crs = message.crs.toCRS(participant.group)
             participant.crs = crs
+            Log.d("adr_GROUPCHECK","g:${participant.group.g}, \nh:${participant.group.h},\ngt:${participant.group.gt}")
+
             messageList.add(message.addressMessage)
 
         }
@@ -226,7 +233,7 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
-        if (participant !is TTP) {
+        if (participant !is REGTTP) { // only registrar should respond to such messages
             return
         } else {
             val groupBytes = participant.group.toGroupElementBytes()
@@ -320,7 +327,7 @@ class IPV8CommunicationProtocol(
         val signedMessage = message.signature.signedMessage.toString(Charsets.UTF_8)         // Extract signed message and verify timestamp and sender match
         val (signedUser, signedTimeStr) = signedMessage.split(":", limit = 2)
         val signedTime = signedTimeStr.toLongOrNull()
-        val isValidTime = signedTime != null && (System.currentTimeMillis() - signedTime) <= 2 * 60 * 1000 // allows only 2 minutes for replay attack
+        val isValidTime = signedTime != null && abs(System.currentTimeMillis() - signedTime) <= 2 * 60 * 1000 // allows only 2 minutes for replay attack
 
         if (sender == signedUser && isValidTime) {
             Log.i("adr", "$signedMessage seems fine (not expired, matching sender)")
@@ -338,9 +345,15 @@ class IPV8CommunicationProtocol(
         }
 
         val group = if (participant is REGTTP) ttp.group else ttp.regGroup
+
+        Log.i("adr", "g = ${group.g}")
+        Log.i("adr", "group order = ${group.getZrOrder()}")
+
         val valid = Schnorr.verifySchnorrSignature(message.signature, senderPK, group)
 
-        Log.i("adrspecial", "Valid: $valid, from: $sender, message: $signedMessage, from PK: $senderPK")
+        Log.i("adrspecial", "Valid: $valid, from: $sender, \nmessage: $signedMessage\n${message.signature.signedMessage.contentEquals(
+            "$signedUser:$signedTimeStr".toByteArray(Charsets.UTF_8)
+        )}, from PK: $senderPK")
 
         if (!valid) {
             Log.i("adrspecial", "Signature verification failed - possible impersonation!")

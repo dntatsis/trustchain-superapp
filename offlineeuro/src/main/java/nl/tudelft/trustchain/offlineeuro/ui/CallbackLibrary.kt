@@ -156,10 +156,11 @@ object CallbackLibrary {
 
                     val recovered = user.scheme.join(indexedMap)
                     val recoveredString = String(recovered, Charsets.UTF_8)
-                    Log.i("adr_recovery","i should be recovering right about now..." + recoveredString + " " + user.Identification_Value)
+                    Log.i("adr_recovery","i should be recovering right about now... Verification:" + {recoveredString == user.Identification_Value})
                     Toast.makeText(context, "Recovery of secret: ${user.Identification_Value == recoveredString} - $recoveredString", Toast.LENGTH_LONG).show()
                     // TODO: allow transactions (send proof)
                     user.identified = true
+                    userFragment.updateConnectedInfo(view)
                 }
 
             }
