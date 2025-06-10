@@ -168,7 +168,7 @@ class IPV8CommunicationProtocolTest {
         )
         iPV8CommunicationProtocol.register(userName, publicKey, ttpAddress.name)
         // Assert that the registration request is sent correctly
-        verify(community, times(1)).registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+        verify(community, times(1)).registerAtTTP(userName, publicKey.toBytes(), Role.User, ttpAddress.peerPublicKey!!)
     }
 
     @Test

@@ -59,7 +59,7 @@ class TransactionTest {
     fun transactionWithoutProofsTest() {
         val user = createTestUser()
         withdrawDigitalEuro(user, bank.name)
-        val walletEntry = user.wallet.getWalletEntryToSpend()!!
+        val walletEntry = user.wallet!!.getWalletEntryToSpend()!!
 
         val privateKey = group.getRandomZr()
         val publicKey = group.g.powZn(privateKey)
@@ -82,7 +82,7 @@ class TransactionTest {
     fun invalidProof() {
         val user = createTestUser()
         withdrawDigitalEuro(user, bank.name)
-        val walletEntry = addProofsToDigitalEuro(user.wallet.getWalletEntryToSpend()!!, 10)
+        val walletEntry = addProofsToDigitalEuro(user.wallet!!.getWalletEntryToSpend()!!, 10)
         val transactionDetails = walletEntryToTransactionDetails(walletEntry)
         val randomProofNr = floor(Math.random() * transactionDetails.digitalEuro.proofs.size).toInt()
         val randomProof = transactionDetails.digitalEuro.proofs[randomProofNr]
@@ -108,7 +108,7 @@ class TransactionTest {
     fun invalidBankSignature() {
         val user = createTestUser()
         val firstEuro = withdrawDigitalEuro(user, bank.name)
-        val walletEntry = user.wallet.getWalletEntryToSpend()!!
+        val walletEntry = user.wallet!!.getWalletEntryToSpend()!!
         val secondEuro = withdrawDigitalEuro(user, bank.name)
 
         // Try with an invalid signature
@@ -142,7 +142,7 @@ class TransactionTest {
     fun invalidBankSignature2() {
         val user = createTestUser()
         val firstEuro = withdrawDigitalEuro(user, bank.name)
-        val walletEntry = user.wallet.getWalletEntryToSpend()!!
+        val walletEntry = user.wallet!!.getWalletEntryToSpend()!!
         val secondEuro = withdrawDigitalEuro(user, bank.name)
 
         // Try with an invalid signature
@@ -176,7 +176,7 @@ class TransactionTest {
     fun invalidBankSignatureMultipleProofs() {
         val user = createTestUser()
         val firstEuro = withdrawDigitalEuro(user, bank.name)
-        val walletEntry = addProofsToDigitalEuro(user.wallet.getWalletEntryToSpend()!!, 2)
+        val walletEntry = addProofsToDigitalEuro(user.wallet!!.getWalletEntryToSpend()!!, 2)
         val secondEuro = withdrawDigitalEuro(user, bank.name)
 
         // Try with an invalid signature

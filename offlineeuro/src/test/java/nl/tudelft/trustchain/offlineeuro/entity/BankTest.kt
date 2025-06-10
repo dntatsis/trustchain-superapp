@@ -47,7 +47,7 @@ class BankTest {
         val publicKeyCaptor = argumentCaptor<ByteArray>()
 
         whenever(addressBookManager.getAddressByName("TTP")).thenReturn(ttpAddress)
-        whenever(community.registerAtTTP(any(), publicKeyCaptor.capture(), any())).then { }
+        whenever(community.registerAtTTP(any(), publicKeyCaptor.capture(), any(), any())).then { }
 
         val bankName = "SomeBank"
         val bank = Bank(bankName, BilinearGroup(PairingTypes.FromFile), communicationProtocol, null, depositedEuroManager)
@@ -73,7 +73,7 @@ class BankTest {
         val bank = Bank(bankName, group, communicationProtocol, null, depositedEuroManager, false)
 
         verify(community, never()).getGroupDescriptionAndCRS()
-        verify(community, never()).registerAtTTP(any(), any(), any())
+        verify(community, never()).registerAtTTP(any(), any(), any(), any())
         Assert.assertEquals(group, bank.group)
 
         Assert.assertThrows(UninitializedPropertyAccessException::class.java) {
