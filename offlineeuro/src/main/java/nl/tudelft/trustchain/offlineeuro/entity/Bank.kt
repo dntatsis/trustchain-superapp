@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
+import kotlinx.coroutines.runBlocking
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
@@ -24,8 +25,10 @@ class Bank(
 
     init {
         communicationProtocol.participant = this
-        if (!runSetup) generateKeyPair()
         this.group = group
+        if (!runSetup) {
+            generateKeyPair()
+        } else runBlocking {setUp()}
     }
 
     fun getBlindSignatureRandomness(userPublicKey: Element): Element {
