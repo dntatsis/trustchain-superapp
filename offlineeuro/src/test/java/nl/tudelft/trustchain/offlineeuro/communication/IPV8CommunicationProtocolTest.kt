@@ -87,7 +87,7 @@ class IPV8CommunicationProtocolTest {
 
         `when`(community.sendGroupDescriptionAndCRS(any(), any(), any(), any())).then { }
 
-        `when`(community.registerAtTTP(any(), any(), any())).then { }
+        `when`(community.registerAtTTP(any(), any(), any(), any())).then { }
 
         `when`(community.sendBlindSignatureRandomnessReply(any(), any())).then { }
         `when`(community.sendBlindSignature(any(), any())).then { }

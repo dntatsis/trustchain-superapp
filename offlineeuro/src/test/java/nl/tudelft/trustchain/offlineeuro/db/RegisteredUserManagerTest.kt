@@ -2,9 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.db
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import nl.tudelft.offlineeuro.sqldelight.Database
-import nl.tudelft.offlineeuro.sqldelight.RegisteredUsers
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.entity.ConnectedUser
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -16,11 +14,11 @@ class ConnectedUserManager {
         }
 
     private val group = BilinearGroup()
-    private val registeredUserManager = RegisteredUsers(null, group, driver)
+    private val registeredUserManager = RegisteredUserManager(null, group, driver)
 
     @Before
     fun before() {
-        registeredUserManager.clearAll()
+        registeredUserManager.clearAllRegisteredUsers()
     }
 
     @Test

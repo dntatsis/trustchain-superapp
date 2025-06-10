@@ -99,7 +99,7 @@ class SystemTest {
         val digitalEuro = withdrawDigitalEuro(user, bank.name)
 
         // Validations on the wallet
-        val allWalletEntries = user.wallet.getAllWalletEntriesToSpend()
+        val allWalletEntries = user.wallet!!.getAllWalletEntriesToSpend()
         Assert.assertEquals("There should only be one Euro", 1, allWalletEntries.size)
 
         val walletEntry = allWalletEntries[0]
