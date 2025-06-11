@@ -26,9 +26,7 @@ class Bank(
     init {
         communicationProtocol.participant = this
         this.group = group
-        if (!runSetup) {
-            generateKeyPair()
-        } else runBlocking {setUp()}
+        if (!runSetup) generateKeyPair()
     }
 
     fun getBlindSignatureRandomness(userPublicKey: Element): Element {

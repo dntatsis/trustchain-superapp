@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
+import kotlinx.coroutines.runBlocking
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
@@ -20,14 +21,19 @@ class User(
     val connected: MutableList<String> = mutableListOf(),
     var identified: Boolean = false
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
+
     lateinit var scheme: Scheme
-    var wallet: Wallet? = null
+    lateinit var wallet: Wallet
     val my_shares: MutableList<Pair<String,ByteArray>> = mutableListOf()
+
     init {
         communicationProtocol.participant = this
         this.group = group
 
-        if (!runSetup) generateKeyPair()
+        if (!runSetup) {
+            generateKeyPair()
+            wallet = Wallet(privateKey, publicKey, walletManager!!)
+        }
 
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
@@ -74,7 +80,7 @@ class User(
         val blindSignature = communicationProtocol.requestBlindSignature(publicKey, bank, blindedChallenge.blindedChallenge)
         val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
-        wallet!!.addToWallet(digitalEuro, firstT)
+        wallet.addToWallet(digitalEuro, firstT)
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
         return digitalEuro
     }

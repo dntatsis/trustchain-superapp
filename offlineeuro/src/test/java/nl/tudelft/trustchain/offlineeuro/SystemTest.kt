@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import kotlinx.coroutines.runBlocking
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
@@ -24,6 +25,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
@@ -35,6 +37,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionResult
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.entity.Wallet
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import org.junit.Assert
 import org.junit.Before
@@ -64,23 +67,6 @@ class SystemTest {
         // Initiate
         createTTP()
         createBank()
-        val firstProofCaptor = argumentCaptor<ByteArray>()
-        val secondProofCaptor = argumentCaptor<ByteArray>()
-        `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(), any())).then {
-            val firstProofBytes = firstProofCaptor.lastValue
-            val secondProofBytes = secondProofCaptor.lastValue
-
-            val peerMock = Mockito.mock(Peer::class.java)
-            val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
-
-            val fraudControlResultCaptor = argumentCaptor<String>()
-            `when`(ttpCommunity.sendFraudControlReply(fraudControlResultCaptor.capture(), any())).then {
-                val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
-                bankCommunity.messageList.add(replyMessage)
-            }
-
-            ttpCommunity.messageList.add(fraudControlRequestMessage)
-        }
     }
 
     @Test
@@ -99,7 +85,7 @@ class SystemTest {
         val digitalEuro = withdrawDigitalEuro(user, bank.name)
 
         // Validations on the wallet
-        val allWalletEntries = user.wallet!!.getAllWalletEntriesToSpend()
+        val allWalletEntries = user.wallet.getAllWalletEntriesToSpend()
         Assert.assertEquals("There should only be one Euro", 1, allWalletEntries.size)
 
         val walletEntry = allWalletEntries[0]
@@ -130,6 +116,24 @@ class SystemTest {
 
         // Double Spend
         spendEuro(user, user3, doubleSpend = true)
+
+        val firstProofCaptor = argumentCaptor<ByteArray>()
+        val secondProofCaptor = argumentCaptor<ByteArray>()
+        `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(), any())).then {
+            val firstProofBytes = firstProofCaptor.lastValue
+            val secondProofBytes = secondProofCaptor.lastValue
+
+            val peerMock = Mockito.mock(Peer::class.java)
+            val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
+
+            val fraudControlResultCaptor = argumentCaptor<String>()
+            `when`(ttpCommunity.sendFraudControlReply(fraudControlResultCaptor.capture(), any())).then {
+                val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
+                bankCommunity.messageList.add(replyMessage)
+            }
+
+            ttpCommunity.messageList.add(fraudControlRequestMessage)
+        }
 
         // Deposit double spend Euro
         spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
@@ -257,7 +261,7 @@ class SystemTest {
         Assert.assertEquals(expectedResult, transactionResult)
     }
 
-    fun createTestUser(): User {
+    private fun createTestUser(): User {
         // Start with a random group
         val addressBookManager = createAddressManager(group)
         val walletManager = WalletManager(null, group, createDriver())
@@ -279,12 +283,13 @@ class SystemTest {
     private fun createTTP() {
         val addressBookManager = createAddressManager(group)
         val registeredUserManager = RegisteredUserManager(null, group, createDriver())
+        val connectedUserManager = ConnectedUserManager(null, createDriver())
 
         ttpCommunity = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, ttpCommunity)
 
         Mockito.`when`(ttpCommunity.messageList).thenReturn(communicationProtocol.messageList)
-        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager)
+        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager, connectedUserManager)
         crs = ttp.crs
         communicationProtocol.participant = ttp
     }

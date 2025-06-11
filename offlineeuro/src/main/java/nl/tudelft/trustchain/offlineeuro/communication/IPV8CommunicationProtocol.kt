@@ -336,7 +336,7 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleFraudControlRequestMessage(message: FraudControlRequestMessage) {
-        if (getParticipantRole() != Role.REG_TTP) {
+        if (getParticipantRole() != Role.REG_TTP && participant !is TTP) {
             return
         }
         val ttp = participant as TTP

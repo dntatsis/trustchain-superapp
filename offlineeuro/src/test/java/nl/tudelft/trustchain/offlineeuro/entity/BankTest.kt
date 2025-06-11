@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import kotlinx.coroutines.runBlocking
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
@@ -51,6 +52,7 @@ class BankTest {
 
         val bankName = "SomeBank"
         val bank = Bank(bankName, BilinearGroup(PairingTypes.FromFile), communicationProtocol, null, depositedEuroManager)
+        runBlocking{bank.setUp()}
 
         val capturedPKBytes = publicKeyCaptor.firstValue
         val capturedPK = ttpGroup.gElementFromBytes(capturedPKBytes)
