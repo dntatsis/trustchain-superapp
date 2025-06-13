@@ -42,6 +42,10 @@ import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import java.math.BigInteger
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
+import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
+import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
+import kotlin.math.abs
 
 
 class IPV8CommunicationProtocol(
@@ -62,10 +66,23 @@ class IPV8CommunicationProtocol(
         community.getGroupDescriptionAndCRS()
         val message =
             waitForMessageAsync(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
-        participant.group.updateGroupElements(message.groupDescription)
-        val crs = message.crs.toCRS(participant.group)
-        participant.crs = crs
-        messageList.add(message.addressMessage)
+        Log.i("adr","message received!\ncontents are as follows:\ng:${message.groupDescription.g}\nh:${message.groupDescription.h}\ngt:${message.groupDescription.gt}")
+        if(participant is TTP){ // copy regttp group into ttp
+            (participant as TTP).regGroup.updateGroupElements(message.groupDescription)
+            val crs = message.crs.toCRS((participant as TTP).regGroup)
+            (participant as TTP).regCrs = crs
+            Log.d("adr_GROUPCHECK","g:${(participant as TTP).regGroup.g}, \nh:${(participant as TTP).regGroup.h}, \ngt:${(participant as TTP).regGroup.gt}")
+
+        }
+        else{
+            participant.group.updateGroupElements(message.groupDescription)
+            val crs = message.crs.toCRS(participant.group)
+            participant.crs = crs
+            Log.d("adr_GROUPCHECK","g:${participant.group.g}, \nh:${participant.group.h},\ngt:${participant.group.gt}")
+
+            messageList.add(message.addressMessage)
+
+        }
     }
 
     override fun register(
@@ -79,12 +96,13 @@ class IPV8CommunicationProtocol(
     }
 
     override fun requestShare( // send your request for a share
-        userName: String,
+        signature: SchnorrSignature,
+        name : String,
         ttpname: String
     ){
         val ttpAddress = addressBookManager.getAddressByName(ttpname)
 
-        community.requestSharefromTTP(userName, ttpAddress.peerPublicKey!!)
+        community.requestSharefromTTP(signature, name, ttpAddress.peerPublicKey!!)
     }
     override fun connect( // send your share to a connected TTP
         userName: String,
@@ -215,12 +233,13 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
-        if (participant !is TTP) {
+        if (participant !is REGTTP) { // only registrar should respond to such messages
             return
         } else {
             val groupBytes = participant.group.toGroupElementBytes()
             val crsBytes = participant.crs.toCRSBytes()
             val peer = message.requestingPeer
+            Log.i("adr","received a Group request")
             community.sendGroupDescriptionAndCRS(
                 groupBytes,
                 crsBytes,
@@ -298,24 +317,65 @@ class IPV8CommunicationProtocol(
         }
     }
     private fun handleShareRequestMessage(message: ShareRequestMessage) {
-        // When receiving a Share Request and you're either a register or a TTP, send a response
-        if (participant !is REGTTP && participant !is TTP) {
+        // Only process if participant is REGTTP or TTP
+        if (participant !is REGTTP && participant !is TTP) return
+
+        val ttp = participant as TTP
+        val sender = message.userName
+        val addressList = addressBookManager.getAllAddresses()
+
+        val signedMessage = message.signature.signedMessage.toString(Charsets.UTF_8)         // Extract signed message and verify timestamp and sender match
+        val (signedUser, signedTimeStr) = signedMessage.split(":", limit = 2)
+        val signedTime = signedTimeStr.toLongOrNull()
+        val isValidTime = signedTime != null && abs(System.currentTimeMillis() - signedTime) <= 2 * 60 * 1000 // allows only 2 minutes for replay attack
+
+        if (sender == signedUser && isValidTime) {
+            Log.i("adr", "$signedMessage seems fine (not expired, matching sender)")
+        } else {
+            Log.i("adr", "Invalid signature timestamp or user mismatch. Time diff: ${System.currentTimeMillis() - (signedTime ?: 0)}")
             return
         }
 
-        val ttp = participant as TTP
-        val share = ttp.getSharefromTTP(message.userName)
-        if (share != null){
-            val shareRequestResponse = ShareResponsePayload(message.userName,share,ttp.name)
-            community.sendShareRequestResponsePacket(message.peer,shareRequestResponse)
+        Log.i("adr", "Searching for $sender in \n$addressList")
+        val senderPK = addressList.find { it.name == sender }?.publicKey
+
+        if (senderPK == null) {
+            Log.i("adr", "User $sender not found in address book.")
+            return
         }
 
+        val group = if (participant is REGTTP) ttp.group else ttp.regGroup
+
+        Log.i("adr", "g = ${group.g}")
+        Log.i("adr", "group order = ${group.getZrOrder()}")
+
+        val valid = Schnorr.verifySchnorrSignature(message.signature, senderPK, group)
+
+        Log.i("adrspecial", "Valid: $valid, from: $sender, \nmessage: $signedMessage\n${message.signature.signedMessage.contentEquals(
+            "$signedUser:$signedTimeStr".toByteArray(Charsets.UTF_8)
+        )}, from PK: $senderPK")
+
+        if (!valid) {
+            Log.i("adrspecial", "Signature verification failed - possible impersonation!")
+            return
+        }
+
+        val share = ttp.getSharefromTTP(sender)
+        if (share != null) {
+            val response = ShareResponsePayload(sender, share, ttp.name)
+            community.sendShareRequestResponsePacket(message.peer, response)
+        }
     }
     private fun handleShareResponseMessage(message: ShareResponseMessage){ // When receiving a Share Response, trigger the callback
         if(participant is User && message.userName == participant.name){
             // partial secret share has been returned.
+                val index = (participant as User).myShares.indexOfFirst { it.first == message.sender }
 
-            (participant as User).my_shares.add(Pair(message.sender,message.secretShare))
+                if (index != -1) {
+                    (participant as User).myShares[index] = message.sender to message.secretShare
+                } else {
+                    print("Name not found in the list")
+                }
             participant.onDataChangeCallback?.invoke("secret_share_recv " + message.secretShare.toString())
         }
         // TODO: add bank logic here

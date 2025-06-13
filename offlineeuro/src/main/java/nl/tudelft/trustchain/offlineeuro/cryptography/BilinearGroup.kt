@@ -14,7 +14,8 @@ enum class PairingTypes {
     A,
     F,
     E,
-    FromFile
+    FromFile,
+    FromFileCopy // pairing type for ttp to hold regttp group
 }
 
 data class BilinearGroupElementsBytes(
@@ -37,7 +38,7 @@ data class BilinearGroupElementsBytes(
 class BilinearGroup(
     pairingType: PairingTypes = PairingTypes.A,
     rBits: Int = 160,
-    val context: Context? = null
+    val context: Context? = null,
 ) {
     val pairing: Pairing
     var g: Element
@@ -67,13 +68,14 @@ class BilinearGroup(
                     PairingFactory.getPairing(params)
                 }
 
-                PairingTypes.FromFile -> {
+                PairingTypes.FromFile, PairingTypes.FromFileCopy -> {
                     if (context == null) {
                         PairingFactory.getPairing("lib/params/a_181_603.properties")
                     } else {
                         // Access the assets folder
                         val assetManager = context.assets
-                        val inputStream: InputStream = assetManager.open("params/a_181_603.properties")
+                        val inputStream: InputStream =
+                            assetManager.open("params/a_181_603.properties")
 
                         val filename = "ecc.properties"
                         context.openFileOutput(filename, Context.MODE_PRIVATE).use {
@@ -85,11 +87,12 @@ class BilinearGroup(
                         PairingFactory.getPairing("$contextDir/$filename")
                     }
                 }
+
             }
 
-        g = pairing.g1.newRandomElement().immutable
-        h = pairing.g2.newRandomElement().immutable
-        gt = pairing.gt.newRandomElement().immutable
+            g = pairing.g1.newRandomElement().immutable
+            h = pairing.g2.newRandomElement().immutable
+            gt = pairing.gt.newRandomElement().immutable
     }
 
     fun updateGroupElements(groupElementsBytes: BilinearGroupElementsBytes) {
@@ -154,4 +157,5 @@ class BilinearGroup(
 
         return this.g == other.g && this.h == other.h && this.gt == other.gt && this.pairing == other.pairing
     }
+
 }

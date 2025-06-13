@@ -14,6 +14,8 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.entity.misc.randomNameGenerator
 
 class TTPHomeFragment : BaseTTPFragment(R.layout.fragment_ttp_home) {
@@ -33,6 +35,7 @@ class TTPHomeFragment : BaseTTPFragment(R.layout.fragment_ttp_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
             iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+
             ttp = TTP(
                 name = "TTP " + randomNameGenerator.randomName,
                 group = group,
@@ -40,8 +43,9 @@ class TTPHomeFragment : BaseTTPFragment(R.layout.fragment_ttp_home) {
                 context = context,
                 onDataChangeCallback = onDataChangeCallback
             )
-
-
+            lifecycleScope.launch {
+                ttp.setup() // exchange group with regttp - Requires REGTTP to be launched first!
+            }
         }
         setWelcomeText(view,ttp.name)
 

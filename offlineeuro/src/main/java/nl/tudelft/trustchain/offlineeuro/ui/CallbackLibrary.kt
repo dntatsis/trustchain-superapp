@@ -140,30 +140,34 @@ object CallbackLibrary {
         message: String?,
         view: View,
         communicationProtocol: IPV8CommunicationProtocol,
-        user: User
+        user: User,
+        userFragment: UserHomeFragment
+
     ) {
-        val k = 2
-        val n = 2
         if (message != null) {
             if(message.startsWith("secret_share_recv")){
-                if (user.my_shares.size >= k){ // enough shares to recover secret
-                    val sortedList = user.my_shares.sortedBy { it.first } // sort alphabetically as they were sent for correct mapping
+                Log.i("adr", "callback with secret share: $message,\n ${user.myShares}")
+                if (user.myShares.count { it.second.isNotEmpty() } >= user.k){ // enough shares to recover secret
 
-                    val indexedMap: Map<Int, ByteArray> = sortedList.mapIndexed { index, pair ->
-                        (index + 1) to pair.second
-                    }.toMap() // map from 1 to k
+                    val indexedMap: Map<Int, ByteArray> = user.myShares
+                        .filter { it.second.isNotEmpty() } // make sure to get only returned shares.
+                        .mapIndexed { newIndex, pair -> (newIndex + 1) to pair.second }
+                        .toMap() // map from 1 to k
 
                     val recovered = user.scheme.join(indexedMap)
                     val recoveredString = String(recovered, Charsets.UTF_8)
-                    Log.i("adr_recovery","i should be recovering right about now..." + recoveredString + " " + user.Identification_Value)
+                    Log.i("adr_recovery","i should be recovering right about now... Verification:" + {recoveredString == user.Identification_Value})
                     Toast.makeText(context, "Recovery of secret: ${user.Identification_Value == recoveredString} - $recoveredString", Toast.LENGTH_LONG).show()
                     // TODO: allow transactions (send proof)
                     user.identified = true
+                    userFragment.updateConnectedInfo(view)
                 }
 
             }
             else {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                userFragment.updateConnectedInfo(view)
+                view.refreshDrawableState()
             }
 
             val balanceField = view.findViewById<TextView>(R.id.user_home_balance)

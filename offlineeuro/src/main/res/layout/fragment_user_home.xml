@@ -36,6 +36,14 @@
                     android:gravity="center"
                     android:layout_marginVertical="30dp"
                     />
+                <TextView
+                    android:id="@+id/user_home_connection_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="You are _connection_status_"
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:layout_marginBottom="16dp" />
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -88,20 +96,6 @@
                 android:layout_height="wrap_content"
                 app:layout_constraintBottom_toBottomOf="parent" />
 
-
-            <Button
-                android:id="@+id/user_connect_ttps"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Connect to available TTPs" />
-
-            <Button
-                android:id="@+id/request_shares"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Request Shares" />
             <Button
                 android:id="@+id/user_home_reset_button"
                 android:layout_width="wrap_content"

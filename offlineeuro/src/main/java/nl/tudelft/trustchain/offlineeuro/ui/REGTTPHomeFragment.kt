@@ -31,9 +31,9 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
             activity?.title = "TTP"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
+            Log.d("adr_GROUPCHECK","${group.g}, ${group.h}, ${group.gt}")
             val addressBookManager = AddressBookManager(context, group)
             iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-            val n = 3
             regttp = REGTTP(
                 name = "TTP",
                 group = group,

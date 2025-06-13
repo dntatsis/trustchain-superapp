@@ -29,7 +29,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?
-    ) {
+    ) { // TODO: this file needs complete restructuring, callback functions have been redefined, same with participant holder
         super.onViewCreated(view, savedInstanceState)
         activity?.title = "Flexible role"
         community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
@@ -169,13 +169,13 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         if (this::user.isInitialized) {
             requireActivity().runOnUiThread {
                 val context = requireContext()
-                CallbackLibrary.userCallback(
+                /* CallbackLibrary.userCallback(
                     context,
                     message,
                     requireView(),
                     iPV8CommunicationProtocol,
-                    user
-                )
+                    user,this
+                ) */
             }
         }
     }
