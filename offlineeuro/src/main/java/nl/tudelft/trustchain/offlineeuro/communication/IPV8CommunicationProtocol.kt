@@ -99,10 +99,14 @@ class IPV8CommunicationProtocol(
         signature: SchnorrSignature,
         name : String,
         ttpname: String
-    ){
+    ): ByteArray {
         val ttpAddress = addressBookManager.getAddressByName(ttpname)
 
         community.requestSharefromTTP(signature, name, ttpAddress.peerPublicKey!!)
+
+        val replyMessage =
+            waitForMessage(CommunityMessageType.ShareResponseMessage) as ShareResponseMessage
+        return replyMessage.secretShare
     }
     override fun connect( // send your share to a connected TTP
         userName: String,
@@ -330,33 +334,24 @@ class IPV8CommunicationProtocol(
         val isValidTime = signedTime != null && abs(System.currentTimeMillis() - signedTime) <= 2 * 60 * 1000 // allows only 2 minutes for replay attack
 
         if (sender == signedUser && isValidTime) {
-            Log.i("adr", "$signedMessage seems fine (not expired, matching sender)")
+//            Log.i("adr", "$signedMessage seems fine (not expired, matching sender)")
         } else {
-            Log.i("adr", "Invalid signature timestamp or user mismatch. Time diff: ${System.currentTimeMillis() - (signedTime ?: 0)}")
+//            Log.i("adr", "Invalid signature timestamp or user mismatch. Time diff: ${System.currentTimeMillis() - (signedTime ?: 0)}")
             return
         }
 
-        Log.i("adr", "Searching for $sender in \n$addressList")
         val senderPK = addressList.find { it.name == sender }?.publicKey
 
         if (senderPK == null) {
-            Log.i("adr", "User $sender not found in address book.")
+//            Log.i("adr", "User $sender not found in address book.")
             return
         }
 
-        val group = if (participant is REGTTP) ttp.group else ttp.regGroup
-
-        Log.i("adr", "g = ${group.g}")
-        Log.i("adr", "group order = ${group.getZrOrder()}")
-
+//        val group = if (participant is REGTTP) ttp.group else ttp.regGroup
+        val group = ttp.group
         val valid = Schnorr.verifySchnorrSignature(message.signature, senderPK, group)
-
-        Log.i("adrspecial", "Valid: $valid, from: $sender, \nmessage: $signedMessage\n${message.signature.signedMessage.contentEquals(
-            "$signedUser:$signedTimeStr".toByteArray(Charsets.UTF_8)
-        )}, from PK: $senderPK")
-
         if (!valid) {
-            Log.i("adrspecial", "Signature verification failed - possible impersonation!")
+//            Log.i("adrspecial", "Signature verification failed - possible impersonation!")
             return
         }
 
@@ -410,7 +405,7 @@ class IPV8CommunicationProtocol(
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
             is ShareRequestMessage -> handleShareRequestMessage(message)
-            is ShareResponseMessage -> handleShareResponseMessage(message)
+//            is ShareResponseMessage -> handleShareResponseMessage(message)
             is TTPConnectionMessage -> handleConnectionMessage(message)
             is AddressRequestMessage -> handleAddressRequestMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)
@@ -419,7 +414,6 @@ class IPV8CommunicationProtocol(
             is TransactionRandomizationElementsRequestMessage -> handleTransactionRandomizationElementsRequest(message)
             is TransactionMessage -> handleTransactionMessage(message)
             is TTPRegistrationMessage -> handleRegistrationMessage(message)
-            is TTPConnectionMessage -> handleConnectionMessage(message)
             is FraudControlRequestMessage -> handleFraudControlRequestMessage(message)
             else -> throw Exception("Unsupported message type")
         }

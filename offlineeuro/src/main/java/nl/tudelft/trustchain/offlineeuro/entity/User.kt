@@ -26,7 +26,7 @@ class User(
     var Identification_Value: String = "",
     val connected: MutableList<String> = mutableListOf(),
     var identified: Boolean = false,
-    val n: Int = 2,
+    val n: Int = 3,
     val k: Int = 2
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
 
@@ -102,11 +102,10 @@ class User(
         return
     }
 
-    fun recoverShare(ttpName: String){
-        Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
+    fun recoverShare(ttpName: String): ByteArray {
+//        Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
         val signature = Schnorr.schnorrSignature(privateKey, (name + ":" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group)
-        communicationProtocol.requestShare(signature,name,ttpName)
-        communicationProtocol.requestShare(Schnorr.schnorrSignature(privateKey, ("Alice:" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group),"Alice",ttpName) // fails - unless you're alice
+        return communicationProtocol.requestShare(signature,name,ttpName)
     }
 
     fun withdrawDigitalEuro(bank: String): DigitalEuro {

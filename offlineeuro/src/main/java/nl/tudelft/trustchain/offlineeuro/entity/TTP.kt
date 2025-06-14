@@ -14,8 +14,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 
-
-    open class TTP(
+open class TTP(
     name: String = "TTP",
     group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
@@ -25,10 +24,12 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
     onDataChangeCallback: ((String?) -> Unit)? = null,
     var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
-        var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
-        lateinit var regCrs: CRS
-        val crsMap: Map<Element, Element>
-        init {
+
+    var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
+    lateinit var regCrs: CRS
+    val crsMap: Map<Element, Element>
+
+    init {
         communicationProtocol.participant = this
         this.group = group
         val generatedCRS = CRSGenerator.generateCRSMap(group)
@@ -37,49 +38,47 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
         generateKeyPair()
     }
 
-        fun getSharefromTTP(name: String): ByteArray? {
-            communicationProtocol.participant = this
-            for (i in this.connected_Users) {
-                if (i.first == name) {
-                    return i.second
-                }
-            }
-            return null
-        }
+    suspend fun setup(){
+        setUp(false)
+    }
 
-    fun registerUser(
-        name: String,
-        publicKey: Element
-    ): Boolean {
+    fun getSharefromTTP(name: String): ByteArray? {
+        communicationProtocol.participant = this
+        for (i in this.connected_Users) {
+            if (i.first == name) {
+                return i.second
+            }
+        }
+        return null
+    }
+
+    fun registerUser(name: String, publicKey: Element): Boolean {
         val result = registeredUserManager.addRegisteredUser(name, publicKey)
         onDataChangeCallback?.invoke("1Registered $name")
         return result
     }
-        suspend fun setup(){
-            setUp(false)
+
+    fun connectUser(name: String, secretShare: ByteArray): Boolean {
+        val result = connectedUserManager.addConnectedUser(name, secretShare)
+        // TODO: actually use database for this
+        val index = connected_Users.indexOfFirst { it.first == name }
+        if (index != -1) {
+            connected_Users[index] = name to secretShare  // update
+        } else {
+            connected_Users.add(name to secretShare)      // add
         }
-        fun connectUser(
-            name: String,
-            secretShare: ByteArray
-        ): Boolean {
-            val result = connectedUserManager.addConnectedUser(name, secretShare)
-            // TODO: actually use database for this
-            val index = connected_Users.indexOfFirst { it.first == name }
-            if (index != -1) {
-                connected_Users[index] = name to secretShare  // update
-            } else {
-                connected_Users.add(name to secretShare)      // add
-            }
-            onDataChangeCallback?.invoke("secret_share_recv by $name")
-            return result
-        }
+        onDataChangeCallback?.invoke("secret_share_recv by $name")
+        return result
+    }
 
     fun getRegisteredUsers(): List<RegisteredUser> {
         return registeredUserManager.getAllRegisteredUsers()
     }
-        fun getConnectedUsers(): List<ConnectedUser> {
-            return connectedUserManager.getAllConnectedUsers()
-        }
+
+    fun getConnectedUsers(): List<ConnectedUser> {
+        return connectedUserManager.getAllConnectedUsers()
+    }
+
     override fun onReceivedTransaction(
         transactionDetails: TransactionDetails,
         publicKeyBank: Element,
@@ -90,7 +89,6 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 
     fun getUserFromProof(grothSahaiProof: GrothSahaiProof): RegisteredUser? {
         val crsExponent = crsMap[crs.u]
-        val test = group.g.powZn(crsExponent)
         val publicKey =
             grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
 
@@ -117,14 +115,3 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
         registeredUserManager.clearAllRegisteredUsers()
     }
 }
-
-    class REGTTP (
-    name: String = "REGTTP",
-    group: BilinearGroup,
-    communicationProtocol: ICommunicationProtocol,
-    context: Context?,
-    registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
-    connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
-    onDataChangeCallback: ((String?) -> Unit)? = null
-
-) : TTP(name,group,communicationProtocol,context,registeredUserManager,connectedUserManager,onDataChangeCallback)
