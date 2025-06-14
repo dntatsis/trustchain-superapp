@@ -197,8 +197,6 @@ class IPV8CommunicationProtocol(
 
         val recovered = scheme.join(partialPart)
         val recoveredString = String(recovered, Charsets.UTF_8)
-//        val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-//        val message = waitForMessage(CommunityMessageType.FraudControlReplyMessage) as FraudControlReplyMessage
         return recoveredString
     }
 

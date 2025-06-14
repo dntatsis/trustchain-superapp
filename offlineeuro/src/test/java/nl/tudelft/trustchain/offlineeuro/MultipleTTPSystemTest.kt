@@ -126,7 +126,8 @@ class MultipleTTPSystemTest {
         bankCommunity.messageList.add(bankAddressMessage)
         ttpCommunityList.values.forEach{addTTPCommunity -> addTTPCommunity.messageList.add(bankAddressMessage)}
 
-
+        ttpCommunity.messageList.add(AddressMessage(ttp.name, Role.REG_TTP, ttp.publicKey.toBytes(), ttp.name.toByteArray()))
+        ttpList.forEach {addTTP ->  ttpCommunityList[addTTP]!!.messageList.add(AddressMessage(addTTP.name, Role.TTP, addTTP.publicKey.toBytes(), addTTP.name.toByteArray()))}
 
         val digitalEuro = withdrawDigitalEuro(user, bank.name)
 
@@ -163,19 +164,19 @@ class MultipleTTPSystemTest {
         // Double Spend
         spendEuro(user, user3, doubleSpend = true)
 
-        val firstProofCaptor = argumentCaptor<ByteArray>()
-        val secondProofCaptor = argumentCaptor<ByteArray>()
-        `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(), any())).then {
-            val firstProofBytes = firstProofCaptor.lastValue
-            val secondProofBytes = secondProofCaptor.lastValue
+        ttpCommunityList.keys.forEach { addTTP ->
+            val firstProofCaptor = argumentCaptor<ByteArray>()
+            val secondProofCaptor = argumentCaptor<ByteArray>()
+            `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(),
+                    argThat{peerPublicKey -> peerPublicKey.contentEquals((addTTP.communicationProtocol as IPV8CommunicationProtocol).addressBookManager.getAddressByName(addTTP.name).peerPublicKey!!)})).then {
+                val firstProofBytes = firstProofCaptor.lastValue
+                val secondProofBytes = secondProofCaptor.lastValue
 
-            val peerMock = Mockito.mock(Peer::class.java)
-            val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
-
-            val fraudControlResultCaptor = argumentCaptor<ByteArray>()
-            ttpCommunityList.values.forEach { ttpCommunity ->
+                val peerMock = Mockito.mock(Peer::class.java)
+                val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
+                val fraudControlResultCaptor = argumentCaptor<ByteArray>()
                 `when`(
-                    ttpCommunity.sendFraudControlReply(
+                    ttpCommunityList[addTTP]!!.sendFraudControlReply(
                         fraudControlResultCaptor.capture(),
                         any()
                     )
@@ -183,9 +184,8 @@ class MultipleTTPSystemTest {
                     val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
                     bankCommunity.messageList.add(replyMessage)
                 }
+                ttpCommunityList[addTTP]!!.messageList.add(fraudControlRequestMessage)
             }
-
-            ttpCommunity.messageList.add(fraudControlRequestMessage)
         }
 
         // Deposit double spend Euro
