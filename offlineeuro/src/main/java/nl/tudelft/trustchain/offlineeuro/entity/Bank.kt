@@ -113,7 +113,7 @@ class Bank(
             val depositProof = doubleSpendEuro.proofs[maxFirstDifferenceIndex]
             try {
                 val dsResult =
-                    communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
+                    communicationProtocol.requestFraudControl(euroProof, depositProof)
 
                 if (dsResult != "") {
                     depositedEuroLogger.add(Pair(euro.serialNumber, true))

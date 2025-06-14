@@ -107,6 +107,114 @@ class MultipleTTPSystemTest {
         Assert.assertEquals(recoveredString2, "my secret share")
     }
 
+    @Test
+    fun connectToTTPAndRequestShareByBankTest() {
+        createTTP()
+        createBank()
+        val user = createTestUser()
+
+        //Register all participants in user list
+        addMessageToList(user, AddressMessage(ttp.name, Role.REG_TTP, ttp.publicKey.toBytes(), ttp.name.toByteArray()))
+        ttpList.forEach {addTTP ->  addMessageToList(user, AddressMessage(addTTP.name, Role.TTP, addTTP.publicKey.toBytes(), addTTP.name.toByteArray()))}
+        ttpCommunityList.values.forEach{community -> community.messageList.add(AddressMessage(user.name, Role.User, user.publicKey.toBytes(), user.name.toByteArray()))}
+
+        connectUserToTTP(user, ttp)
+        ttpList.forEach { addTTP -> connectUserToTTP(user, addTTP) }
+
+        val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
+        addMessageToList(user, bankAddressMessage)
+        bankCommunity.messageList.add(bankAddressMessage)
+        ttpCommunityList.values.forEach{addTTPCommunity -> addTTPCommunity.messageList.add(bankAddressMessage)}
+
+
+
+        val digitalEuro = withdrawDigitalEuro(user, bank.name)
+
+        // Validations on the wallet
+        val allWalletEntries = user.wallet.getAllWalletEntriesToSpend()
+        Assert.assertEquals("There should only be one Euro", 1, allWalletEntries.size)
+
+        val walletEntry = allWalletEntries[0]
+        Assert.assertEquals("That should be the withdrawn Euro", digitalEuro, walletEntry.digitalEuro)
+
+        val computedTheta1 = user.group.g.powZn(walletEntry.t.mul(-1))
+        Assert.assertEquals("The first theta should be correct", digitalEuro.firstTheta1, computedTheta1)
+        Assert.assertNull("The walletEntry should not have a previous transaction", walletEntry.transactionSignature)
+
+        val user2 = createTestUser()
+        addMessageToList(user2, bankAddressMessage)
+
+        val user2AddressMessage = AddressMessage(user2.name, Role.User, user2.publicKey.toBytes(), user2.name.toByteArray())
+        addMessageToList(user, user2AddressMessage)
+
+        // First Spend
+        spendEuro(user, user2)
+
+        // Deposit
+        spendEuro(user2, bank, "Deposit was successful!")
+
+        // Prepare double spend
+        val user3 = createTestUser()
+        addMessageToList(user3, bankAddressMessage)
+
+        val user3AddressMessage = AddressMessage(user3.name, Role.User, user3.publicKey.toBytes(), user3.name.toByteArray())
+        addMessageToList(user, user3AddressMessage)
+
+        // Double Spend
+        spendEuro(user, user3, doubleSpend = true)
+
+        val firstProofCaptor = argumentCaptor<ByteArray>()
+        val secondProofCaptor = argumentCaptor<ByteArray>()
+        `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(), any())).then {
+            val firstProofBytes = firstProofCaptor.lastValue
+            val secondProofBytes = secondProofCaptor.lastValue
+
+            val peerMock = Mockito.mock(Peer::class.java)
+            val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
+
+            val fraudControlResultCaptor = argumentCaptor<ByteArray>()
+            ttpCommunityList.values.forEach { ttpCommunity ->
+                `when`(
+                    ttpCommunity.sendFraudControlReply(
+                        fraudControlResultCaptor.capture(),
+                        any()
+                    )
+                ).then {
+                    val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
+                    bankCommunity.messageList.add(replyMessage)
+                }
+            }
+
+            ttpCommunity.messageList.add(fraudControlRequestMessage)
+        }
+
+        // Deposit double spend Euro
+        spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
+
+
+
+        val share = requestShare(user, ttp)
+        val share2 = requestShare(user, ttpList.get(0))
+        val share3 = requestShare(user, ttpList.get(1))
+
+        val scheme = Scheme(SecureRandom(), 3, 2)
+        val partialPart = mapOf(
+            1 to share,
+            2 to share2
+        )
+        val recovered = scheme.join(partialPart)
+        val recoveredString = String(recovered, Charsets.UTF_8)
+        Assert.assertEquals(recoveredString, "my secret share")
+
+        val partialPart2 = mapOf(
+            2 to share2,
+            3 to share3
+        )
+        val recovered2 = scheme.join(partialPart2)
+        val recoveredString2 = String(recovered2, Charsets.UTF_8)
+        Assert.assertEquals(recoveredString2, "my secret share")
+    }
+
     private fun withdrawDigitalEuro(
         user: User,
         bankName: String

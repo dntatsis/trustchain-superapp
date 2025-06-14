@@ -127,7 +127,7 @@ class SystemTest {
             val peerMock = Mockito.mock(Peer::class.java)
             val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
 
-            val fraudControlResultCaptor = argumentCaptor<String>()
+            val fraudControlResultCaptor = argumentCaptor<ByteArray>()
             `when`(ttpCommunity.sendFraudControlReply(fraudControlResultCaptor.capture(), any())).then {
                 val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
                 bankCommunity.messageList.add(replyMessage)

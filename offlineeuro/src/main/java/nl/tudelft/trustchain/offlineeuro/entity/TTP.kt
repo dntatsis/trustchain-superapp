@@ -98,16 +98,16 @@ open class TTP(
     fun getUserFromProofs(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof
-    ): String {
+    ): ByteArray? {
         val firstPK = getUserFromProof(firstProof)
         val secondPK = getUserFromProof(secondProof)
 
-        return if (firstPK != null && firstPK == secondPK) {
+        if (firstPK != null && firstPK == secondPK) {
             onDataChangeCallback?.invoke("Found proof that  ${firstPK.name} committed fraud!")
-            "Double spending detected. Double spender is ${firstPK.name} with PK: ${firstPK.publicKey}"
+            return getSharefromTTP(firstPK.name)
         } else {
             onDataChangeCallback?.invoke("Invalid fraud request received!")
-            "No double spending detected"
+            return null
         }
     }
 

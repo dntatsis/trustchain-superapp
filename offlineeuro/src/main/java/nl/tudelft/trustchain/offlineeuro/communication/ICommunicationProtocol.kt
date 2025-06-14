@@ -56,7 +56,6 @@ interface ICommunicationProtocol {
     fun requestFraudControl(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof,
-        nameTTP: String
     ): String
 
     fun getPublicKeyOf(
