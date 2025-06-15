@@ -17,10 +17,11 @@ import nl.tudelft.trustchain.offlineeuro.entity.ConnectedUser
  * @property driver the driver of the database, can be used to pass a custom driver
  */
 class ConnectedUserManager(
-    context: Context?,
-    private val driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "connected_users.db"),
+    context: Context? = null,
+    driver: SqlDriver? = null
 ) {
-    private val database: Database = Database(driver)
+    private val resolvedDriver = driver ?: AndroidSqliteDriver(Database.Schema, context!!, "connected_users.db")
+    private val database: Database = Database(resolvedDriver)
     private val queries: ConnectedUsersQueries = database.connectedUsersQueries
 
      private val connectedUserMapper = {
