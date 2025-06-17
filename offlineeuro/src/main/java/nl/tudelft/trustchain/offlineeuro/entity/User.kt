@@ -20,7 +20,7 @@ class User(
     context: Context?,
     private var walletManager: WalletManager? = null,
     communicationProtocol: ICommunicationProtocol,
-    runSetup: Boolean = true,
+    runSetup: Boolean = false,
     onDataChangeCallback: ((String?) -> Unit)? = null,
     var Identification_Value: String = "",
     val connected: MutableList<String> = mutableListOf(),
@@ -30,13 +30,13 @@ class User(
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
 
     lateinit var scheme: Scheme
-    var wallet: Wallet? = null
+    lateinit var wallet: Wallet
     val myShares: MutableList<Pair<String,ByteArray>> =  MutableList(n) { Pair("", ByteArray(0)) }
         init {
         communicationProtocol.participant = this
         this.group = group
 
-        if (!runSetup) generateKeyPair()
+        if (runSetup) generateKeyPair()
 
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
@@ -52,7 +52,7 @@ class User(
     fun sendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails =
-            wallet!!.spendEuro(randomizationElements, group, crs)
+            wallet.spendEuro(randomizationElements, group, crs)
                 ?: throw Exception("No euro to spend")
 
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails)
@@ -62,7 +62,7 @@ class User(
 
     fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
-        val transactionDetails = wallet!!.doubleSpendEuro(randomizationElements, group, crs)
+        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
         onDataChangeCallback?.invoke(result)
         return result
@@ -119,7 +119,7 @@ class User(
         val blindSignature = communicationProtocol.requestBlindSignature(publicKey, bank, blindedChallenge.blindedChallenge)
         val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
-        wallet!!.addToWallet(digitalEuro, firstT)
+        wallet.addToWallet(digitalEuro, firstT)
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
         return digitalEuro
     }
@@ -138,7 +138,7 @@ class User(
         val transactionResult = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
 
         if (transactionResult.valid) {
-            wallet!!.addToWallet(transactionDetails, usedRandomness)
+            wallet.addToWallet(transactionDetails, usedRandomness)
             onDataChangeCallback?.invoke("Received an euro from $publicKeySender")
             return transactionResult.description
         }

@@ -27,6 +27,7 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
 
         if (ParticipantHolder.regttp != null) {
             regttp = ParticipantHolder.regttp!!
+            iPV8CommunicationProtocol = regttp.communicationProtocol as IPV8CommunicationProtocol
         } else {
             activity?.title = "TTP"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
@@ -61,6 +62,14 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
             }
         }
     }
+
+    fun updateUserList(view: View) {
+        val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
+        val users = regttp.getRegisteredUsers()
+        TableHelpers.removeAllButFirstRow(table)
+        TableHelpers.addRegisteredUsersToTable(table, users)
+    }
+
     fun refreshRegisteredUsersView(
         view: View,
         registeredUsers: List<Triple<String, String, String>> // Triple<UserID, Name, PublicKey>

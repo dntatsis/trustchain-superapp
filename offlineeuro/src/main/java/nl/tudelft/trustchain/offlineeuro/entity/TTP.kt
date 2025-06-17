@@ -15,7 +15,7 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 
 
-    open class TTP(
+open class TTP(
     name: String = "TTP",
     group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
@@ -37,22 +37,22 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
         generateKeyPair()
     }
 
-        fun getSharefromTTP(name: String): ByteArray? {
-            communicationProtocol.participant = this
-            for (i in this.connected_Users) {
-                if (i.first == name) {
-                    return i.second
-                }
+    fun getSharefromTTP(name: String): ByteArray? {
+        communicationProtocol.participant = this
+        for (i in this.connected_Users) {
+            if (i.first == name) {
+                return i.second
             }
-            return null
         }
+        return null
+    }
 
     fun registerUser(
         name: String,
         publicKey: Element
     ): Boolean {
         val result = registeredUserManager.addRegisteredUser(name, publicKey)
-        onDataChangeCallback?.invoke("1Registered $name")
+        onDataChangeCallback?.invoke("Registered $name")
         return result
     }
         suspend fun setup(){
@@ -75,6 +75,7 @@ import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
         }
 
     fun getRegisteredUsers(): List<RegisteredUser> {
+        Log.d("RegisteredUsers for $name: ", registeredUserManager.getAllRegisteredUsers().toString())
         return registeredUserManager.getAllRegisteredUsers()
     }
         fun getConnectedUsers(): List<ConnectedUser> {

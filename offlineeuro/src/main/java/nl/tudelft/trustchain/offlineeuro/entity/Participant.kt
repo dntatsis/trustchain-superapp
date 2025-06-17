@@ -24,7 +24,6 @@ abstract class Participant(
         if (flag){ // true if user or bank calls
             generateKeyPair()
             registerAtTTP()
-
         }
     }
 

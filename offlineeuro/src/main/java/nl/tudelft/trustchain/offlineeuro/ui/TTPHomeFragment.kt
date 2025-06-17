@@ -29,6 +29,7 @@ class TTPHomeFragment : BaseTTPFragment(R.layout.fragment_ttp_home) {
 
         if (ParticipantHolder.ttp != null) {
             ttp = ParticipantHolder.ttp!![0]
+            iPV8CommunicationProtocol = ttp.communicationProtocol as IPV8CommunicationProtocol
         } else {
             activity?.title = "TTP"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!

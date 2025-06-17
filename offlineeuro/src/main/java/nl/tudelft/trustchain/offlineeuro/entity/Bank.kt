@@ -15,7 +15,7 @@ class Bank(
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
     private val depositedEuroManager: DepositedEuroManager = DepositedEuroManager(context, group),
-    runSetup: Boolean = true,
+    runSetup: Boolean = false,
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
@@ -24,7 +24,7 @@ class Bank(
 
     init {
         communicationProtocol.participant = this
-        if (!runSetup) generateKeyPair()
+        if (runSetup) generateKeyPair()
         this.group = group
     }
 

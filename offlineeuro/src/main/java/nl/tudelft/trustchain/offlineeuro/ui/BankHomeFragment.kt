@@ -36,6 +36,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
 
         if (ParticipantHolder.bank != null) {
             bank = ParticipantHolder.bank!!
+            iPV8CommunicationProtocol = bank.communicationProtocol as IPV8CommunicationProtocol
         } else {
             activity?.title = "Bank"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
