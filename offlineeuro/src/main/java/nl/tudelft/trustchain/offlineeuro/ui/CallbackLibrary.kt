@@ -24,20 +24,20 @@ object CallbackLibrary {
     ) {
         if (message != null) {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-            if (message.startsWith("addr_mess_recv", 0, false)) { // handle message reception (new TTP)
-                // update TTP, user List
-                Log.i("adr", "received a peer for my address book")
-            }
+
             val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
             val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                .filter { it.name != bank.name }
             Log.d("adr", "addressList is null: ${addressList == null}")
             TableHelpers.addAddressesToTable(addressList, addresses, bank, context)
             view.refreshDrawableState()
 
         }
         val table = view.findViewById<LinearLayout>(R.id.bank_home_deposited_list)
-        TableHelpers.removeAllButFirstRow(table)
-        TableHelpers.addDepositedEurosToTable(table, bank)
+        if(table != null){
+            TableHelpers.removeAllButFirstRow(table)
+            TableHelpers.addDepositedEurosToTable(table, bank)
+        }
     }
 
     fun ttpCallback(
@@ -51,31 +51,29 @@ object CallbackLibrary {
         if (message != null) {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
-            if (message.startsWith("addr_mess_recv", 0, false)) { // handle message reception (new TTP)
-                // update TTP list
 
-                val ttpInfo: MutableList<Pair<String, Boolean>> = mutableListOf(ttp.name to true)
-                var commProt = ttp.communicationProtocol as IPV8CommunicationProtocol
-                val allNames = commProt.addressBookManager.getAllAddresses()
-                    .filter { it.type == Role.TTP || it.type == Role.REG_TTP } // add all TTPS that arent added to TTP list
-                    .map { it.name to false }
-                    .filter { it !in ttpInfo }
+            val ttpInfo: MutableList<Pair<String, Boolean>> = mutableListOf(ttp.name to true)
+            var commProt = ttp.communicationProtocol as IPV8CommunicationProtocol
+            val allNames = commProt.addressBookManager.getAllAddresses()
+                .filter { it.type == Role.TTP || it.type == Role.REG_TTP } // add all TTPS that arent added to TTP list
+                .map { it.name to false }
+                .filter { it !in ttpInfo }
 
-                ttpInfo.addAll(allNames)
-                ttpHomeFragment.refreshOtherTTPsView(view, ttp.name,ttpInfo)
+            ttpInfo.addAll(allNames)
+            ttpHomeFragment.refreshOtherTTPsView(view, ttp.name,ttpInfo)
 
-                val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
-                val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+            val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
+            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                .filter { it.name != ttp.name }
+            if(addressList != null){
                 TableHelpers.addAddressesToTable(addressList, addresses, ttp, context)
                 view.refreshDrawableState()
-
-            } else if (message.startsWith("secret_share_recv", 0, false)) { // handle message reception
-
-                ttpHomeFragment.refreshSecretSharesView(view, ttp.connected_Users)
-
-            } else {
-                updateUserList(view, ttp)
             }
+
+            ttpHomeFragment.refreshSecretSharesView(view, ttp.connected_Users)
+
+            updateUserList(view, ttp)
+
         }
     }
     fun regttpCallback(
@@ -86,11 +84,11 @@ object CallbackLibrary {
         ttp: REGTTP,
         regttpHomeFragment: REGTTPHomeFragment
     ) {
+        Log.i("adr_invoke","invoked from inside $message")
+
         if (message != null) {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
-            if (message.startsWith("addr_mess_recv", 0, false)) {
-                // update TTP list
 
                 val ttpInfo: MutableList<Pair<String, Boolean>> = mutableListOf(ttp.name to true)
                 var commProt = ttp.communicationProtocol as IPV8CommunicationProtocol
@@ -110,18 +108,18 @@ object CallbackLibrary {
 
                 regttpHomeFragment.refreshRegisteredUsersView(view, regUsers)
 
-                val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
-                val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-                TableHelpers.addAddressesToTable(addressList, addresses, ttp, context)
-                view.refreshDrawableState()
-
-            } else if (message.startsWith("secret_share_recv", 0, false)) {
-
                 regttpHomeFragment.refreshSecretSharesView(view, ttp.connected_Users)
 
-            } else {
+                val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
+            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                .filter { it.name != ttp.name }
+                if(addressList != null){
+                    TableHelpers.addAddressesToTable(addressList, addresses, ttp, context)
+                    view.refreshDrawableState()
+
+                }
+
                 updateUserList(view, ttp)
-            }
         }
     }
     private fun updateUserList(
@@ -147,35 +145,34 @@ object CallbackLibrary {
         if (message != null) {
             if(message.startsWith("secret_share_recv")){
                 Log.i("adr", "callback with secret share: $message,\n ${user.myShares}")
-                if (user.myShares.count { it.second.isNotEmpty() } >= user.k){ // enough shares to recover secret
-
-                    val indexedMap: Map<Int, ByteArray> = user.myShares
-                        .filter { it.second.isNotEmpty() } // make sure to get only returned shares.
-                        .mapIndexed { newIndex, pair -> (newIndex + 1) to pair.second }
-                        .toMap() // map from 1 to k
-
-                    val recovered = user.scheme.join(indexedMap)
-                    val recoveredString = String(recovered, Charsets.UTF_8)
-                    Log.i("adr_recovery","i should be recovering right about now... Verification:" + {recoveredString == user.Identification_Value})
-                    Toast.makeText(context, "Recovery of secret: ${user.Identification_Value == recoveredString} - $recoveredString", Toast.LENGTH_LONG).show()
-                    // TODO: allow transactions (send proof)
-                    user.identified = true
-                    userFragment.updateConnectedInfo(view)
-                }
 
             }
-            else {
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            if ((user.myShares.count { it.second.isNotEmpty() } >= user.k) and (!user.identified)){ // enough shares to recover secret for the first time
+
+                val indexedMap: Map<Int, ByteArray> = user.myShares
+                    .filter { it.second.isNotEmpty() } // make sure to get only returned shares.
+                    .mapIndexed { newIndex, pair -> (newIndex + 1) to pair.second }
+                    .toMap() // map from 1 to k
+
+                val recovered = user.scheme.join(indexedMap)
+                val recoveredString = String(recovered, Charsets.UTF_8)
+                Log.i("adr_recovery","i should be recovering right about now... Verification: ${recoveredString == user.Identification_Value}")
+                Toast.makeText(context, "Recovery of secret: ${user.Identification_Value == recoveredString} - $recoveredString", Toast.LENGTH_LONG).show()
+                // TODO: allow transactions (send proof)
+                user.identified = true
                 userFragment.updateConnectedInfo(view)
-                view.refreshDrawableState()
             }
 
             val balanceField = view.findViewById<TextView>(R.id.user_home_balance)
             balanceField.text = user.getBalance().toString()
             val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
             val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+                .filter { it.name != user.name }
             Log.d("adr", "addressList is null: ${addressList == null}")
             TableHelpers.addAddressesToTable(addressList, addresses, user, context)
+            view.refreshDrawableState()
+            // Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            userFragment.updateConnectedInfo(view)
             view.refreshDrawableState()
 
         }

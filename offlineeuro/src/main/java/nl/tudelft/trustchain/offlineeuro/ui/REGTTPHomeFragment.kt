@@ -8,12 +8,15 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
 
 class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
@@ -24,15 +27,16 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
         savedInstanceState: Bundle?
     ) {
         super.onViewCreated(view, savedInstanceState)
-
+        Log.d("adr_am i null?",(ParticipantHolder.regttp == null).toString())
         if (ParticipantHolder.regttp != null) {
             regttp = ParticipantHolder.regttp!!
             iPV8CommunicationProtocol = regttp.communicationProtocol as IPV8CommunicationProtocol
+            regttp.isAllRoles = true
+
         } else {
             activity?.title = "TTP"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
-            Log.d("adr_GROUPCHECK","${group.g}, ${group.h}, ${group.gt}")
             val addressBookManager = AddressBookManager(context, group)
             iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
             regttp = REGTTP(
@@ -50,8 +54,14 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
         refreshOtherTTPsView(view, regttp.name, ttpInfo)
 
         view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
-            iPV8CommunicationProtocol.scopePeers()
-        }
+            lifecycleScope.launch {
+                if(!regttp.isAllRoles){
+                    iPV8CommunicationProtocol.scopePeers()
+                }
+                else{
+                    onDataChangeCallback("Refresh!")
+                }
+            }        }
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->
@@ -75,7 +85,9 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
         registeredUsers: List<Triple<String, String, String>> // Triple<UserID, Name, PublicKey>
     ) {
         val userListContainer = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list)
-
+        if(userListContainer == null){
+            return
+        }
         // Remove all children except the header (assumed to be the first child)
         if (userListContainer.childCount > 1) {
             userListContainer.removeViews(1, userListContainer.childCount - 1)

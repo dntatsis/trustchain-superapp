@@ -4,9 +4,11 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
@@ -19,6 +21,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.entity.Wallet
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_home) {
@@ -27,8 +30,14 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
 
     private lateinit var ttpList: MutableList<TTP>
     private lateinit var bank: Bank
-    private lateinit var user: User
+    private lateinit var userList: MutableList<User>
 
+    private lateinit var ttpFragmentList: List<BaseTTPFragment>
+    private lateinit var bankFragment: BankHomeFragment
+    private lateinit var userFragment: List<UserHomeFragment>
+    private var inc = 0 // counts visits to user fragments
+
+    private var currentChildFragment: OfflineEuroBaseFragment? = null
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?
@@ -47,49 +56,124 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
             val ttpName = if (index == 0) "TTP" else "TTP $index"
             if (index == 0)
                 REGTTP(
-                name = ttpName,
-                group = group,
-                communicationProtocol = iPV8CommunicationProtocol,
-                context = context,
-                onDataChangeCallback = onTTPDataChangeCallback)
+                    name = ttpName,
+                    group = group,
+                    communicationProtocol = iPV8CommunicationProtocol,
+                    context = context,
+                    onDataChangeCallback = null
+                )
             else
                 TTP(
-                name = ttpName,
-                group = group,
-                communicationProtocol = iPV8CommunicationProtocol,
-                context = context,
-                onDataChangeCallback = onTTPDataChangeCallback)
+                    name = ttpName,
+                    group = group,
+                    communicationProtocol = iPV8CommunicationProtocol,
+                    context = context,
+                    onDataChangeCallback = null
+                )
         }
-        // ttp = TTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onTTPDataChangeCallback)
+        // create the ttp fragments as well
+        ttpFragmentList = List(n) { index ->
+            if (index == 0)
+                REGTTPHomeFragment()
+            else
+                TTPHomeFragment(count = index - 1) // subtract one because regttp doesnt count
+        }
+        for (i in 0 until n){ // set callbacks and add to address book
+            if (i == 0){
+                ttpList[i].onDataChangeCallback = onREGTTPDataChangeCallback(ttpList[i] as REGTTP, ttpFragmentList[i] as REGTTPHomeFragment)
+                iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[i].name, Role.REG_TTP, ttpList[i].publicKey, null))
+            }
+            else {
+                ttpList[i].onDataChangeCallback = onTTPDataChangeCallback(ttpList[i], ttpFragmentList[i] as TTPHomeFragment)
+                iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[i].name, Role.TTP, ttpList[i].publicKey, null))
 
-        bank = Bank("Bank", group, iPV8CommunicationProtocol, context, depositedEuroManager, onDataChangeCallback = onBankDataChangeCallBack)
+            }
+        }
+
+        // Create bank, bank fragment
+
+        bank = Bank("Bank", group, iPV8CommunicationProtocol, context, depositedEuroManager, onDataChangeCallback = null)
         bank.group = ttpList[0].group
         bank.crs = ttpList[0].crs
         bank.generateKeyPair()
 
-        iPV8CommunicationProtocol.participant = ttpList[0]
+        bankFragment = BankHomeFragment()
+
+        bank.onDataChangeCallback = onBankDataChangeCallBack(bank,bankFragment)
+        iPV8CommunicationProtocol.participant = ttpList[0] // iPV8CommunicationProtocol.participant represents the active entity
+
+        // register bank to REGTTP
         ttpList[0].registerUser(bank.name, bank.publicKey)
+        // add to addressbook
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(bank.name, Role.Bank, bank.publicKey, null))
 
-        user =
-            User(
-                "TestUser",
-                group,
-                context,
-                null,
-                iPV8CommunicationProtocol,
-                runSetup = false,
-                onDataChangeCallback = onUserDataChangeCallBack,
-                Identification_Value = "my_secret"
-            )
-        user.group = ttpList[0].group
-        user.crs = ttpList[0].crs
+        Log.i("adr_reg","registered bank")
+        activity?.title = "User"
 
-        ParticipantHolder.ttp = ttpList
+        community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
+        userList = mutableListOf<User>()
+
+        // create each user
+
+        var connectedSuccessfully = true;
+        lifecycleScope.launch {
+            repeat(n) { index ->
+                try {
+                    val user = User(
+                        "TestUser$index",
+                        group,
+                        context,
+                        null,
+                        iPV8CommunicationProtocol,
+                        runSetup = true,
+                        onDataChangeCallback = null,
+                        Identification_Value = "my_secret$index"
+                    )
+                    userList.add(user)
+                } catch (e: Throwable) {
+                    Toast.makeText(
+                        context,
+                        "${e.message}: Failed to connect to a TTP",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    Log.e("adr_user", "User creation failed", e)
+                    connectedSuccessfully = false
+                }
+            }
+
+        }
+
+        // create user fragments
+        userFragment = List(n) { index ->
+            UserHomeFragment(count = index)
+        }
+
+        // set up individual group, wallet, crs, datachangecallback for users
+
+        for (i in 0 until n) {
+
+            userList[i].wallet =
+                Wallet(userList[i].privateKey, userList[i].publicKey, userList[i].walletManager!!)
+            userList[i].group = ttpList[0].group
+            userList[i].crs = ttpList[0].crs
+            iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(userList[i].name, Role.User, userList[i].publicKey, null))
+
+            userList[i].onDataChangeCallback = onUserDataChangeCallBack(userList[i],userFragment[i])
+
+        }
+
+        if (!connectedSuccessfully) return
+
+        ParticipantHolder.regttp = ttpList[0] as REGTTP
+        ParticipantHolder.ttp = ttpList.drop(1).toMutableList()
+
         ParticipantHolder.bank = bank
-        ParticipantHolder.user = user
+        ParticipantHolder.user = userList
 
-        //ttpList[0].registerUser(user.name, user.publicKey)
+        for (i in 0 until n) { // register all users
+            ttpList[0].registerUser(userList[i].name, userList[i].publicKey)
+
+        }
         //iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(user.name, Role.User, user.publicKey, null))
         //iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[0].name, Role.REG_TTP, ttpList[0].publicKey, null))
 
@@ -98,7 +182,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         //        Address(ttp.name, Role.TTP, ttp.publicKey, null)
         //    )
         //}
-        print(iPV8CommunicationProtocol.addressBookManager.getAllAddresses())
+        Log.i("adr_reg",iPV8CommunicationProtocol.addressBookManager.getAllAddresses().joinToString("\n"))
 
         prepareButtons(view)
         setTTPAsChild(view)
@@ -133,17 +217,17 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
 
     private fun setTTPAsChild(view: View) {
         iPV8CommunicationProtocol.participant = ttpList[0]
-        val ttpFragment = REGTTPHomeFragment()
+
+        currentChildFragment = ttpFragmentList[0]
         childFragmentManager.beginTransaction()
-            .replace(R.id.parent_fragment_container, ttpFragment)
+            .replace(R.id.parent_fragment_container, ttpFragmentList[0])
             .commit()
         Toast.makeText(context, "Switched to TTP", Toast.LENGTH_SHORT).show()
-        ttpFragment.updateUserList(view)
     }
 
     private fun setBankAsChild() {
         iPV8CommunicationProtocol.participant = bank
-        val bankFragment = BankHomeFragment()
+        currentChildFragment = bankFragment
         childFragmentManager.beginTransaction()
             .replace(R.id.parent_fragment_container, bankFragment)
             .commit()
@@ -151,44 +235,75 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     }
 
     private fun setUserAsChild() {
-        iPV8CommunicationProtocol.participant = user
-        val userFragment = UserHomeFragment()
+        iPV8CommunicationProtocol.participant = userList[inc % 2]
+        currentChildFragment = userFragment[inc % 2]
         childFragmentManager.beginTransaction()
-            .replace(R.id.parent_fragment_container, userFragment)
+            .replace(R.id.parent_fragment_container, userFragment[inc % 2])
             .commit()
         Toast.makeText(context, "Switched to User", Toast.LENGTH_SHORT).show()
+        inc += 1
     }
 
-    private val onBankDataChangeCallBack: (String?) -> Unit = { message ->
-        if (this::bank.isInitialized) {
-            requireActivity().runOnUiThread {
-                CallbackLibrary.bankCallback(requireContext(), message,iPV8CommunicationProtocol, requireView(), bank)
-            }
+    private fun onBankDataChangeCallBack(
+        bank: Bank,
+        fragment: BankHomeFragment
+    ): (String?) -> Unit = { message ->
+        requireActivity().runOnUiThread {
+            CallbackLibrary.bankCallback(
+                requireContext(),
+                message,
+                iPV8CommunicationProtocol,
+                requireView(),
+                bank
+            )
         }
     }
 
-    private val onUserDataChangeCallBack: (String?) -> Unit = { message ->
-        if (this::user.isInitialized) {
-            requireActivity().runOnUiThread {
-                val context = requireContext()
-                /* CallbackLibrary.userCallback(
-                    context,
-                    message,
-                    requireView(),
-                    iPV8CommunicationProtocol,
-                    user,this
-                ) */
-            }
+    private fun onUserDataChangeCallBack(
+        user: User,
+        fragment: UserHomeFragment
+    ): (String?) -> Unit = { message ->
+        requireActivity().runOnUiThread {
+            CallbackLibrary.userCallback(
+                requireContext(),
+                message,
+                requireView(),
+                iPV8CommunicationProtocol,
+                user,
+                fragment
+            )
         }
     }
 
-    private val onTTPDataChangeCallback: (String?) -> Unit = { message ->
-        if (this::ttpList.isInitialized) {
-            requireActivity().runOnUiThread {
-                val context = requireContext()
-                // TODO: figure out how to deal with added TTPhome context!
-                //CallbackLibrary.ttpCallback(context, message, requireView(), ttpList[0], this)
-            }
+
+    private fun onREGTTPDataChangeCallback(
+        regttp: REGTTP,
+        fragment: REGTTPHomeFragment
+    ): (String?) -> Unit = { message ->
+        requireActivity().runOnUiThread {
+            CallbackLibrary.regttpCallback(
+                requireContext(),
+                message,
+                requireView(),
+                iPV8CommunicationProtocol,
+                regttp,
+                fragment
+            )
+        }
+    }
+    private fun onTTPDataChangeCallback(
+        ttp: TTP,
+        fragment: TTPHomeFragment
+    ): (String?) -> Unit = { message ->
+        requireActivity().runOnUiThread {
+            CallbackLibrary.ttpCallback(
+                requireContext(),
+                message,
+                iPV8CommunicationProtocol,
+                requireView(),
+                ttp,
+                fragment
+            )
         }
     }
 

@@ -1,11 +1,13 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
+import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
+import nl.tudelft.trustchain.offlineeuro.ui.ParticipantHolder
 import java.math.BigInteger
 import kotlin.math.min
 
@@ -46,17 +48,18 @@ class Bank(
             lookUp(userPublicKey)
                 ?: return BigInteger.ZERO
         remove(userPublicKey)
-
-        onDataChangeCallback?.invoke("A token was withdrawn by $userPublicKey")
+        //onDataChangeCallback?.invoke("A token was withdrawn by $userPublicKey")
         // <Subtract balance here>
         return Schnorr.signBlindedChallenge(k, challenge, privateKey)
     }
 
     private fun lookUp(userPublicKey: Element): Element? {
+        Log.i("adr lookup", "looking up ${withdrawUserRandomness.entries.joinToString("\n")},\n for pk: $userPublicKey")
         for (element in withdrawUserRandomness.entries) {
             val key = element.key
 
             if (key == userPublicKey) {
+                Log.i("adr succ","success!")
                 return element.value
             }
         }
@@ -85,7 +88,8 @@ class Bank(
         if (duplicateEuros.isEmpty()) {
             depositedEuroLogger.add(Pair(euro.serialNumber, false))
             depositedEuroManager.insertDigitalEuro(euro)
-            onDataChangeCallback?.invoke("An euro was deposited successfully by $publicKeyUser")
+            //onDataChangeCallback?.invoke("An euro was deposited successfully by $publicKeyUser")
+            Log.i("adr deposit","Deposit was successful!")
             return "Deposit was successful!"
         }
 
@@ -111,27 +115,35 @@ class Bank(
             val euroProof = euro.proofs[maxFirstDifferenceIndex]
             val depositProof = doubleSpendEuro.proofs[maxFirstDifferenceIndex]
             try {
-                val dsResult =
-                    communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
+                lateinit var dsResult: String
+
+                if(!isAllRoles){
+                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
+
+                }
+                else{
+                    dsResult = ParticipantHolder.regttp!!.getUserFromProofs(euroProof, depositProof)
+
+                }
 
                 if (dsResult != "") {
                     depositedEuroLogger.add(Pair(euro.serialNumber, true))
                     // <Increase user balance here and penalize the fraudulent User>
                     depositedEuroManager.insertDigitalEuro(euro)
-                    onDataChangeCallback?.invoke(dsResult)
+                    // onDataChangeCallback?.invoke(dsResult)
                     return dsResult
                 }
             } catch (e: Exception) {
                 depositedEuroLogger.add(Pair(euro.serialNumber, true))
                 depositedEuroManager.insertDigitalEuro(euro)
-                onDataChangeCallback?.invoke("Noticed double spending but could not reach TTP")
+                //onDataChangeCallback?.invoke("Noticed double spending but could not reach TTP")
                 return "Found double spending proofs, but TTP is unreachable"
             }
         }
         depositedEuroLogger.add(Pair(euro.serialNumber, true))
         // <Increase user balance here>
         depositedEuroManager.insertDigitalEuro(euro)
-        onDataChangeCallback?.invoke("Noticed double spending but could not find a proof")
+        // onDataChangeCallback?.invoke("Noticed double spending but could not find a proof")
         return "Detected double spending but could not blame anyone"
     }
 
@@ -145,10 +157,12 @@ class Bank(
         publicKeySender: Element
     ): String {
         val transactionResult = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
+
         if (transactionResult.valid) {
             val digitalEuro = transactionDetails.digitalEuro
             digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
-            return depositEuro(transactionDetails.digitalEuro, publicKeySender)
+            val retval = depositEuro(transactionDetails.digitalEuro, publicKeySender)
+            return retval
         }
 
         return transactionResult.description

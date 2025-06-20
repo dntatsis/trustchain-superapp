@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
@@ -73,7 +74,10 @@ class Wallet(
         bilinearGroup: BilinearGroup,
         crs: CRS
     ): TransactionDetails? {
-        val walletEntry = walletManager.getNumberOfWalletEntriesToDoubleSpend(1).firstOrNull() ?: return null
+        val walletEntry = walletManager.getNumberOfWalletEntriesToDoubleSpend(1).firstOrNull()
+        if (walletEntry == null) { // No coins have been spent once, withdraw and send first!
+            return null
+        }
         val euro = walletEntry.digitalEuro
         walletManager.incrementTimesSpent(euro)
 

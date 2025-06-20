@@ -21,7 +21,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.security.SecureRandom
 
-class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
+class UserHomeFragment(val count: Int) : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
     private lateinit var user: User
     private lateinit var community: OfflineEuroCommunity
     private lateinit var communicationProtocol: IPV8CommunicationProtocol
@@ -33,11 +33,12 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         super.onViewCreated(view, savedInstanceState)
 
         if (ParticipantHolder.user != null) {
-            user = ParticipantHolder.user!!
+            user = ParticipantHolder.user!![count]
             communicationProtocol = user.communicationProtocol as IPV8CommunicationProtocol
             val userName: String = user.name
             val welcomeTextView = view.findViewById<TextView>(R.id.user_home_welcome_text)
             welcomeTextView.text = welcomeTextView.text.toString().replace("_name_", userName)
+            user.isAllRoles = true
 
         } else {
             activity?.title = "User"
@@ -86,7 +87,12 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         updateConnectedInfo(view)
         view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
             lifecycleScope.launch {
-                communicationProtocol.scopePeers()
+                if(!user.isAllRoles){
+                    communicationProtocol.scopePeers()
+                }
+                else{
+                    onUserDataChangeCallBack("Refresh!")
+                }
             }
         }
         onUserDataChangeCallBack(null)

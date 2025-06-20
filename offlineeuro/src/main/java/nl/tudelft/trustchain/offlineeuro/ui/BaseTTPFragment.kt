@@ -32,7 +32,7 @@ abstract class BaseTTPFragment(@LayoutRes layoutId: Int) : OfflineEuroBaseFragme
 
     fun refreshOtherTTPsView(view: View, currentName: String, allTTPs: List<Pair<String, Boolean>>) {
         val otherTtpContainer = view.findViewById<LinearLayout>(R.id.ttp_home_other_ttp_list)
-        otherTtpContainer.removeAllViews()
+        otherTtpContainer?.removeAllViews()
 
         val otherTtps = allTTPs.filter { it.first != currentName && it.first.startsWith("TTP") }
 
@@ -43,7 +43,7 @@ abstract class BaseTTPFragment(@LayoutRes layoutId: Int) : OfflineEuroBaseFragme
             })
         } else {
             for ((ttpName, isLocal) in otherTtps) {
-                otherTtpContainer.addView(TextView(view.context).apply {
+                otherTtpContainer?.addView(TextView(view.context).apply {
                     text = "$ttpName (${if (isLocal) "Local" else "Remote"})"
                     textSize = 16f
                     setTextColor(ContextCompat.getColor(view.context, android.R.color.black))
@@ -59,7 +59,9 @@ abstract class BaseTTPFragment(@LayoutRes layoutId: Int) : OfflineEuroBaseFragme
 
      fun refreshSecretSharesView(view: View, connectedUsers: List<Pair<String, ByteArray>>) {
         val userListContainer = view.findViewById<LinearLayout>(R.id.tpp_home_secret_shared_user_list)
-
+        if (userListContainer == null){
+            return
+        }
         if (userListContainer.childCount > 1) {
             userListContainer.removeViews(1, userListContainer.childCount - 1)
         }

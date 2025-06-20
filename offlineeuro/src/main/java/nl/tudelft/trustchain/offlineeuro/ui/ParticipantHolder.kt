@@ -7,7 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.User
 
 object ParticipantHolder {
     var regttp: REGTTP? = null
-    var ttp: MutableList<TTP>? = null // supports multiple TTPs per emulator, not used currently.
+    var ttp: MutableList<TTP>? = null // supports multiple TTPs per emulator
     var bank: Bank? = null
-    var user: User? = null
+    var user: MutableList<User>? = null //supports multiple users per emulator
 }

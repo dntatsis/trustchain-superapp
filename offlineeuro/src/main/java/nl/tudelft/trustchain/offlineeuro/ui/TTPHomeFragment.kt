@@ -18,7 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.entity.misc.randomNameGenerator
 
-class TTPHomeFragment : BaseTTPFragment(R.layout.fragment_ttp_home) {
+class TTPHomeFragment(val count: Int) : BaseTTPFragment(R.layout.fragment_ttp_home) {
     private lateinit var ttp: TTP
 
     override fun onViewCreated(
@@ -28,8 +28,9 @@ class TTPHomeFragment : BaseTTPFragment(R.layout.fragment_ttp_home) {
         super.onViewCreated(view, savedInstanceState)
 
         if (ParticipantHolder.ttp != null) {
-            ttp = ParticipantHolder.ttp!![0]
+            ttp = ParticipantHolder.ttp!![count]
             iPV8CommunicationProtocol = ttp.communicationProtocol as IPV8CommunicationProtocol
+            ttp.isAllRoles = true
         } else {
             activity?.title = "TTP"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
@@ -54,7 +55,14 @@ class TTPHomeFragment : BaseTTPFragment(R.layout.fragment_ttp_home) {
         val ttpInfo: List<Pair<String, Boolean>> = listOf(ttp.name to true)
         refreshOtherTTPsView(view, ttp.name, ttpInfo)
         view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
-            iPV8CommunicationProtocol.scopePeers()
+            lifecycleScope.launch {
+                if(!ttp.isAllRoles){
+                    iPV8CommunicationProtocol.scopePeers()
+                }
+                else{
+                    onDataChangeCallback("Refresh!")
+                }
+            }
         }
     }
 

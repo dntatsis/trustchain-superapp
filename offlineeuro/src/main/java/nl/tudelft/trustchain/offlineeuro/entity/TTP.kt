@@ -53,6 +53,7 @@ open class TTP(
     ): Boolean {
         val result = registeredUserManager.addRegisteredUser(name, publicKey)
         onDataChangeCallback?.invoke("Registered $name")
+        Log.i("adr_invoke TTP","invoked TTP")
         return result
     }
         suspend fun setup(){
@@ -108,6 +109,7 @@ open class TTP(
         return if (firstPK != null && firstPK == secondPK) {
             onDataChangeCallback?.invoke("Found proof that  ${firstPK.name} committed fraud!")
             "Double spending detected. Double spender is ${firstPK.name} with PK: ${firstPK.publicKey}"
+            // TODO: send message to other TTPs in order to deanonymize
         } else {
             onDataChangeCallback?.invoke("Invalid fraud request received!")
             "No double spending detected"

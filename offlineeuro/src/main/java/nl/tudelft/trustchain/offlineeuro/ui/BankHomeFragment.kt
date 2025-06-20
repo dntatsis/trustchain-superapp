@@ -37,6 +37,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         if (ParticipantHolder.bank != null) {
             bank = ParticipantHolder.bank!!
             iPV8CommunicationProtocol = bank.communicationProtocol as IPV8CommunicationProtocol
+            bank.isAllRoles = true
         } else {
             activity?.title = "Bank"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
@@ -58,9 +59,17 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
                 getIdentityButton.visibility = View.VISIBLE
             }
         }
+        getIdentityButton.visibility = View.VISIBLE
         view.findViewById<Button>(R.id.sync_user_button).setOnClickListener {
-            iPV8CommunicationProtocol.scopePeers()
-        }
+
+            lifecycleScope.launch {
+                if(!bank.isAllRoles){
+                    iPV8CommunicationProtocol.scopePeers()
+                }
+                else{
+                    onDataChangeCallBack("Refresh!")
+                }
+            }        }
         onDataChangeCallBack(null)
     }
 

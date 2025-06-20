@@ -208,25 +208,15 @@ object TableHelpers {
         mainButton.setOnClickListener {
             try {
                 val digitalEuro = user.connectToTTP(ttpName)
-                Toast.makeText(
-                    context,
-                    "Successfully connected",
-                    Toast.LENGTH_SHORT
-                ).show()
             } catch (e: Exception) {
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+                 Toast.makeText(context, "connect error", Toast.LENGTH_SHORT).show()
             }
         }
         secondaryButton.setOnClickListener {
             try {
                 val digitalEuro = user.recoverShare(ttpName)
-                Toast.makeText(
-                    context,
-                    "Successfully recovered",
-                    Toast.LENGTH_SHORT
-                ).show()
             } catch (e: Exception) {
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "recover error", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -239,23 +229,33 @@ object TableHelpers {
         context: Context
     ) {
         mainButton.text = "Withdraw"
-        mainButton.setOnClickListener {
-            try {
-                val digitalEuro = user.withdrawDigitalEuro(bankName)
-                Toast.makeText(context, "Successfully withdrawn ${digitalEuro.serialNumber}", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
-            }
-        }
+
 
         secondaryButton.text = "Deposit"
-        secondaryButton.setOnClickListener {
-            try {
-                val depositResult = user.sendDigitalEuroTo(bankName)
 
-                Toast.makeText(context, depositResult, Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+        if(!user.identified){
+            mainButton.background.setTint(context.resources.getColor(R.color.colorPrimarySSI))
+            secondaryButton.background.setTint(context.resources.getColor(R.color.colorPrimarySSI))
+
+        }
+        else{
+            mainButton.setOnClickListener {
+                try {
+                    val digitalEuro = user.withdrawDigitalEuro(bankName)
+                    Toast.makeText(context, "Successfully withdrawn ${digitalEuro.serialNumber}", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "withdrawal error", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            secondaryButton.setOnClickListener {
+                try {
+                    val depositResult = user.sendDigitalEuroTo(bankName)
+
+                    Toast.makeText(context, depositResult, Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "depositing error", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -268,20 +268,28 @@ object TableHelpers {
         context: Context
     ) {
         mainButton.text = "Send Euro"
-        mainButton.setOnClickListener {
-            try {
-                val result = user.sendDigitalEuroTo(userName)
-            } catch (e: Exception) {
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
-            }
-        }
-
         secondaryButton.text = "Double Spend"
-        secondaryButton.setOnClickListener {
-            try {
-                val result = user.doubleSpendDigitalEuroTo(userName)
-            } catch (e: Exception) {
-                Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+
+        if(!user.identified){
+            mainButton.background.setTint(context.resources.getColor(R.color.colorPrimarySSI))
+            secondaryButton.background.setTint(context.resources.getColor(R.color.colorPrimarySSI))
+
+        }
+        else{
+            mainButton.setOnClickListener {
+                try {
+                    val result = user.sendDigitalEuroTo(userName)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "user transfer error", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            secondaryButton.setOnClickListener {
+                try {
+                    val result = user.doubleSpendDigitalEuroTo(userName)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "user doublespend error", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
