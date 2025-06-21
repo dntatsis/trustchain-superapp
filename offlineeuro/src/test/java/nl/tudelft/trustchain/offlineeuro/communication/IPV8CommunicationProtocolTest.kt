@@ -26,6 +26,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
@@ -160,7 +161,7 @@ class IPV8CommunicationProtocolTest {
     fun sendBilinearGroupAndCRSTest() {
         val message = BilinearGroupCRSRequestMessage(receivingPeer)
 
-        val ttp = Mockito.mock(TTP::class.java)
+        val ttp = Mockito.mock(REGTTP::class.java)
         iPV8CommunicationProtocol.participant = ttp
 
         `when`(ttp.group).thenReturn(groupDescription)
@@ -180,8 +181,8 @@ class IPV8CommunicationProtocolTest {
         val publicKey = groupDescription.generateRandomElementOfG()
         val userName = "UserTryingToRegister"
         val participant = Mockito.mock(User::class.java)
-        `when`(participant.publicKey).thenReturn(publicKey)
-        `when`(participant.name).thenReturn(userName)
+        //`when`(participant.publicKey).thenReturn(publicKey)
+        //`when`(participant.name).thenReturn(userName)
         `when`(participant.group).thenReturn(groupDescription)
 
         iPV8CommunicationProtocol.participant = participant
