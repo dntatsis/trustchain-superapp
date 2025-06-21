@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.community.payload
 
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 import org.junit.Assert
 import org.junit.Test
 
@@ -8,8 +9,9 @@ class TTPRegistrationPayloadTest {
     fun serializeAndDeserializeTest() {
         val name = "NameForUserThatIsTryingToRegister"
         val publicKeyBytes = "NotAPublicKeyButJustSomeBytes".toByteArray()
+        val role = Role.User
 
-        val serializedPayload = TTPRegistrationPayload(name, publicKeyBytes).serialize()
+        val serializedPayload = TTPRegistrationPayload(name, publicKeyBytes, role).serialize()
         val deserializedPayload = TTPRegistrationPayload.deserialize(serializedPayload).first
         val deserializedName = deserializedPayload.userName
         val deserializedPublicKey = deserializedPayload.publicKey

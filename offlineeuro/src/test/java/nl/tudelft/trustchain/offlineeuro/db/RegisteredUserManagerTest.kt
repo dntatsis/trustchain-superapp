@@ -16,11 +16,11 @@ class ConnectedUserManager {
         }
 
     private val group = BilinearGroup()
-    private val registeredUserManager = RegisteredUsers(null, group, driver)
+    private val registeredUserManager = RegisteredUserManager(null, group, driver)
 
     @Before
     fun before() {
-        registeredUserManager.clearAll()
+        registeredUserManager.clearAllRegisteredUsers()
     }
 
     @Test

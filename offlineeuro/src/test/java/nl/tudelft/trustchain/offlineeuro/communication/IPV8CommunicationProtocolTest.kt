@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.communication
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import kotlinx.coroutines.launch
@@ -34,6 +35,7 @@ import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
+import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 import org.mockito.kotlin.times
@@ -87,7 +89,7 @@ class IPV8CommunicationProtocolTest {
 
         `when`(community.sendGroupDescriptionAndCRS(any(), any(), any(), any())).then { }
 
-        `when`(community.registerAtTTP(any(), any(), any())).then { }
+        `when`(community.registerAtTTP(any(), any(), any(), any())).then { }
 
         `when`(community.sendBlindSignatureRandomnessReply(any(), any())).then { }
         `when`(community.sendBlindSignature(any(), any())).then { }
@@ -112,6 +114,15 @@ class IPV8CommunicationProtocolTest {
             community.messageList.add(message)
         }
     }
+
+    @Before
+    fun mockAndroidLog() {
+        mockStatic(Log::class.java).use {
+            `when`(Log.i(any(), any())).thenReturn(0)
+            `when`(Log.d(any(), any())).thenReturn(0)
+        }
+    }
+
 
     @Test
     fun getGroupDescriptionAndCRSTest() {
@@ -168,7 +179,7 @@ class IPV8CommunicationProtocolTest {
         )
         iPV8CommunicationProtocol.register(userName, publicKey, ttpAddress.name)
         // Assert that the registration request is sent correctly
-        verify(community, times(1)).registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+        verify(community, times(1)).registerAtTTP(userName, publicKey.toBytes(), Role.User, ttpAddress.peerPublicKey!!)
     }
 
     @Test
