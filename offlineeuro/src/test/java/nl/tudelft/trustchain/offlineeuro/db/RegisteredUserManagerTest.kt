@@ -9,7 +9,7 @@ import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 
-class ConnectedUserManager {
+class ConnectedUserManagerTest {
     private val driver =
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
             Database.Schema.create(this)

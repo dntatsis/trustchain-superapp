@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
@@ -24,6 +25,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
@@ -35,17 +37,24 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionResult
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.entity.Wallet
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.Mockito.atLeastOnce
+import org.mockito.Mockito.doAnswer
+import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.math.BigInteger
 
 class SystemTest {
@@ -58,6 +67,21 @@ class SystemTest {
     private lateinit var bank: Bank
     private lateinit var bankCommunity: OfflineEuroCommunity
     private var i = 0
+
+    lateinit var logMock: MockedStatic<Log>
+
+    @Before
+    fun mockAndroidLog() {
+        logMock = mockStatic(Log::class.java)
+
+        logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+    }
+
+    @After
+    fun closeAndroidLogMock() {
+        logMock.close()
+    }
 
     @Before
     fun setup() {
@@ -94,7 +118,6 @@ class SystemTest {
 
         val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
         addMessageToList(user, bankAddressMessage)
-        // TODO MAKE THIS UNNECESSARY
         bankCommunity.messageList.add(bankAddressMessage)
         val digitalEuro = withdrawDigitalEuro(user, bank.name)
 
@@ -132,7 +155,7 @@ class SystemTest {
         spendEuro(user, user3, doubleSpend = true)
 
         // Deposit double spend Euro
-        spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
+        spendEuro(user3, bank, "Found double spending proofs, but TTP is unreachable")
     }
 
     @Test
@@ -140,7 +163,6 @@ class SystemTest {
         val user = createTestUser()
         val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
         addMessageToList(user, bankAddressMessage)
-        // TODO MAKE THIS UNNECESSARY
         bankCommunity.messageList.add(bankAddressMessage)
         for (i in 0 until 50)
             withdrawDigitalEuro(user, bank.name)
@@ -267,8 +289,10 @@ class SystemTest {
         val community = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
-        Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
+        `when`(community.messageList).thenReturn(communicationProtocol.messageList)
         val user = User(userName, group, null, walletManager, communicationProtocol, runSetup = false)
+        user.generateKeyPair()
+        user.wallet = Wallet(user.privateKey, user.publicKey, walletManager)
         user.crs = crs
         user.group = group
         userList[user] = community
@@ -283,8 +307,11 @@ class SystemTest {
         ttpCommunity = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, ttpCommunity)
 
-        Mockito.`when`(ttpCommunity.messageList).thenReturn(communicationProtocol.messageList)
-        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager)
+        `when`(ttpCommunity.messageList).thenReturn(communicationProtocol.messageList)
+        val connectedUserManager = mock<ConnectedUserManager>()
+        whenever(connectedUserManager.addConnectedUser(any(), any())).thenReturn(true)
+
+        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager, connectedUserManager=connectedUserManager)
         crs = ttp.crs
         communicationProtocol.participant = ttp
     }
@@ -296,8 +323,15 @@ class SystemTest {
         bankCommunity = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, bankCommunity)
 
-        Mockito.`when`(bankCommunity.messageList).thenReturn(communicationProtocol.messageList)
+        `when`(bankCommunity.messageList).thenReturn(communicationProtocol.messageList)
+        doAnswer { invocation ->
+            val fraudControlReply = FraudControlReplyMessage("test123")
+            bankCommunity.messageList.add(fraudControlReply)
+            null
+        }.`when`(bankCommunity).sendFraudControlRequest(any(), any(), any())
+
         bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, runSetup = false)
+        bank.generateKeyPair()
         bank.crs = crs
         addressBookManager.insertAddress(Address(ttp.name, Role.TTP, ttp.publicKey, "SomeTTPPubKey".toByteArray()))
         ttp.registerUser(bank.name, bank.publicKey)
