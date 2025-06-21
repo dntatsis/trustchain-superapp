@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.Peer
@@ -20,14 +21,18 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
 import org.mockito.Mockito
+import org.mockito.Mockito.mockStatic
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -47,6 +52,25 @@ class TransactionTest {
     private lateinit var bank: Bank
     private lateinit var bankCommunity: OfflineEuroCommunity
     private var i = 0
+
+    lateinit var logMock: MockedStatic<Log>
+
+    @Before
+    fun mockAndroidLog() {
+        logMock = mockStatic(Log::class.java)
+
+        logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+    }
+
+    @After
+    fun closeAndroidLogMock() {
+        logMock.close()
+    }
+
 
     @Before
     fun setup() {
@@ -318,6 +342,9 @@ class TransactionTest {
         Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
         val user = User(userName, group, null, walletManager, communicationProtocol, runSetup = false)
         user.crs = ttp.crs
+        user.group = group
+        user.generateKeyPair()
+        user.wallet = Wallet(user.privateKey, user.publicKey, user.walletManager!!)
         userList[user] = community
         return user
     }
@@ -336,12 +363,13 @@ class TransactionTest {
     private fun createTTP() {
         val addressBookManager = createAddressManager(group)
         val registeredUserManager = RegisteredUserManager(null, group, createDriver())
+        val connectedUserManager = ConnectedUserManager(null, createDriver())
 
         val ttpCommunity = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, ttpCommunity)
 
         Mockito.`when`(ttpCommunity.messageList).thenReturn(communicationProtocol.messageList)
-        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager)
+        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager, connectedUserManager)
         crs = ttp.crs
         communicationProtocol.participant = ttp
     }
@@ -356,7 +384,9 @@ class TransactionTest {
         Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
         bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, runSetup = false)
         bank.crs = crs
+        bank.group = group
         bank.generateKeyPair()
+//        bank.registerAtTTP()
         bankCommunity = community
         communicationProtocol.participant = bank
         ttp.registerUser(bank.name, bank.publicKey)
