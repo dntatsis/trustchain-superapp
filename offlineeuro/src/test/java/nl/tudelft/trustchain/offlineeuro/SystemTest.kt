@@ -33,6 +33,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
+import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionResult
@@ -155,7 +156,7 @@ class SystemTest {
         spendEuro(user, user3, doubleSpend = true)
 
         // Deposit double spend Euro
-        spendEuro(user3, bank, "Found double spending proofs, but TTP is unreachable")
+        spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
     }
 
     @Test
@@ -311,7 +312,7 @@ class SystemTest {
         val connectedUserManager = mock<ConnectedUserManager>()
         whenever(connectedUserManager.addConnectedUser(any(), any())).thenReturn(true)
 
-        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager, connectedUserManager=connectedUserManager)
+        ttp = REGTTP("TTP", group, communicationProtocol, null, registeredUserManager, connectedUserManager=connectedUserManager)
         crs = ttp.crs
         communicationProtocol.participant = ttp
     }
