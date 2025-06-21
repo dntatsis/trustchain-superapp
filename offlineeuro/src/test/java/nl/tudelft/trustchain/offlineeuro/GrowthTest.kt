@@ -3,8 +3,6 @@ package nl.tudelft.trustchain.offlineeuro
 import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
