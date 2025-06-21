@@ -34,14 +34,17 @@ import nl.tudelft.trustchain.offlineeuro.enums.Role
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.`when`
+import org.mockito.junit.MockitoJUnitRunner
 import org.mockito.kotlin.any
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import java.math.BigInteger
 
+@RunWith(MockitoJUnitRunner::class)
 class IPV8CommunicationProtocolTest {
     private val context = null
     private val driver =
@@ -117,12 +120,11 @@ class IPV8CommunicationProtocolTest {
 
     @Before
     fun mockAndroidLog() {
-        mockStatic(Log::class.java).use {
-            `when`(Log.i(any(), any())).thenReturn(0)
-            `when`(Log.d(any(), any())).thenReturn(0)
-        }
-    }
+        val logMock = mockStatic(Log::class.java)
 
+        logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+    }
 
     @Test
     fun getGroupDescriptionAndCRSTest() {
