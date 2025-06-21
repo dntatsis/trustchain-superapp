@@ -31,10 +31,12 @@ import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.`when`
@@ -80,6 +82,7 @@ class IPV8CommunicationProtocolTest {
     private val receivingPeer = Mockito.mock(Peer::class.java)
 
     private val iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+    lateinit var logMock: MockedStatic<Log>
 
     @Before
     fun setup() {
@@ -120,10 +123,15 @@ class IPV8CommunicationProtocolTest {
 
     @Before
     fun mockAndroidLog() {
-        val logMock = mockStatic(Log::class.java)
+        logMock = mockStatic(Log::class.java)
 
         logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
         logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+    }
+
+    @After
+    fun closeAndroidLogMock() {
+        logMock.close()
     }
 
     @Test
@@ -132,6 +140,7 @@ class IPV8CommunicationProtocolTest {
         iPV8CommunicationProtocol.participant = ttp
         `when`(ttp.group).thenReturn(groupDescription)
         `when`(ttp.crs).thenReturn(ttpCRS.first)
+        `when`(ttp.regGroup).thenReturn(groupDescription)
 
         runBlocking {
             launch {
