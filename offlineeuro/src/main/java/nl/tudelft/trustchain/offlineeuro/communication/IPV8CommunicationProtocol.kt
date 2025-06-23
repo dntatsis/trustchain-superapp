@@ -45,6 +45,8 @@ import kotlinx.coroutines.delay
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
+import java.security.SecureRandom
 import kotlin.math.abs
 
 
@@ -166,16 +168,19 @@ class IPV8CommunicationProtocol(
     override fun requestFraudControl(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof,
-        nameTTP: String
-    ): String {
-        val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-        community.sendFraudControlRequest(
-            GrothSahaiSerializer.serializeGrothSahaiProof(firstProof),
-            GrothSahaiSerializer.serializeGrothSahaiProof(secondProof),
-            ttpAddress.peerPublicKey!!
-        )
-        val message = waitForMessage(CommunityMessageType.FraudControlReplyMessage) as FraudControlReplyMessage
-        return message.result
+    ): Map<Address, FraudControlReplyMessage> {
+        val ttpAddress =addressBookManager.getAllAddresses().filter { address ->  address.type == Role.REG_TTP || address.type == Role.TTP}
+        val messages = mutableMapOf<Address, FraudControlReplyMessage>()
+        for (ttpVal in ttpAddress) {
+            community.sendFraudControlRequest(
+                GrothSahaiSerializer.serializeGrothSahaiProof(firstProof),
+                GrothSahaiSerializer.serializeGrothSahaiProof(secondProof),
+                ttpVal.peerPublicKey!!
+            )
+            val message = waitForMessage(CommunityMessageType.FraudControlReplyMessage) as FraudControlReplyMessage
+            messages[ttpVal] = message
+        }
+        return messages
     }
 
     fun scopePeers() {

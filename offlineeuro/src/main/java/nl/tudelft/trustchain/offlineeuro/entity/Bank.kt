@@ -4,11 +4,16 @@ import android.content.Context
 import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
+import nl.tudelft.trustchain.offlineeuro.enums.Role
+import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import nl.tudelft.trustchain.offlineeuro.ui.ParticipantHolder
 import java.math.BigInteger
+import java.security.SecureRandom
 import kotlin.math.min
 
 class Bank(
@@ -116,15 +121,39 @@ class Bank(
             val depositProof = doubleSpendEuro.proofs[maxFirstDifferenceIndex]
             try {
                 lateinit var dsResult: String
-
+                val messages: Map<Address, FraudControlReplyMessage>
                 if(!isAllRoles){
-                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
-
+                    messages = communicationProtocol.requestFraudControl(euroProof, depositProof)
                 }
                 else{
+                    messages = mutableMapOf()
                     dsResult = ParticipantHolder.regttp!!.getUserFromProofs(euroProof, depositProof)
-
+                    for (ttp in ParticipantHolder.ttp!!) {
+                        val result = ttp.getUserFromProofs(euroProof, depositProof)
+                        val address: Address = Address(
+                            ttp.name,
+                            Role.TTP,
+                            ttp.publicKey,
+                            null
+                        )
+                        messages[address] = FraudControlReplyMessage(
+                            result.toByteArray()
+                        )
+                    }
                 }
+                val sortedMessages = messages
+                    .toList()
+                    .sortedBy { it.first.name }
+                    .map { it.second.result }
+
+                val partialPart = sortedMessages.mapIndexed { index, message ->
+                    (index + 1) to message
+                }.toMap()
+                val scheme = Scheme(SecureRandom(), 3, 2)
+
+                val recovered = scheme.join(partialPart)
+                val recoveredString = String(recovered, Charsets.UTF_8)
+                Log.i("adr recovered", "Recovered string: $recoveredString")
 
                 if (dsResult != "") {
                     depositedEuroLogger.add(Pair(euro.serialNumber, true))

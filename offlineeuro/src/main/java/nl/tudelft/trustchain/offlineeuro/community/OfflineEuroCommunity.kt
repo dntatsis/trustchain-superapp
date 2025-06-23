@@ -626,7 +626,7 @@ class OfflineEuroCommunity(
     }
 
     fun onFraudControlReply(payload: ByteArrayPayload) {
-        val fraudControlResult = payload.bytes.toString(Charsets.UTF_8)
+        val fraudControlResult = payload.bytes
         addMessage(FraudControlReplyMessage(fraudControlResult))
     }
 
