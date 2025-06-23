@@ -225,7 +225,9 @@ class User(
     fun recoverShare(ttpName: String){
         Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
         val signature = Schnorr.schnorrSignature(privateKey, (name + ":" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group)
-
+        if(connected.size < maximum_shares) {
+            return
+        }
         if (!isAllRoles) {
 
         communicationProtocol.requestShare(signature,name,ttpName)
@@ -265,16 +267,11 @@ class User(
                 if (index2 != -1) {
                     myShares[index2] = ttpName to allTTPs?.get(index)!!.connected_Users.first{ it.first == name }.second
                 }
-                } 
+                }
 
             }
-            else{
-                Log.d("adr","Bad signature attempt!")
-            }
-
-
         }
-    }
+
 
     fun withdrawDigitalEuro(bank: String): DigitalEuro {
 
