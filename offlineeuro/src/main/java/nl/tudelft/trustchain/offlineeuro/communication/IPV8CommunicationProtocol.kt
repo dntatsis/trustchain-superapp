@@ -374,7 +374,7 @@ class IPV8CommunicationProtocol(
                 if (index != -1) {
                     (participant as User).myShares[index] = message.sender to message.secretShare
                 } else {
-                    print("Name not found in the list")
+                    Log.i("adr recover","Name not found in the list")
                 }
             participant.onDataChangeCallback?.invoke("secret_share_recv " + message.secretShare.toString())
         }

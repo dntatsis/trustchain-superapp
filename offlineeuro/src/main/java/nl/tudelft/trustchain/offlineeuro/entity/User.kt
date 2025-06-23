@@ -32,8 +32,8 @@ class User(
 
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     companion object {
-        const val maximum_shares = 2
-        const val minimum_shares = 1
+        const val maximum_shares = 3
+        const val minimum_shares = 2
     }
     lateinit var scheme: Scheme
     lateinit var wallet: Wallet
@@ -261,14 +261,11 @@ class User(
 
             val valid = Schnorr.verifySchnorrSignature(signature, senderPK, group)
             if (valid){
-                // TODO: add share to user's local
                 var index2 = myShares.indexOfFirst { it.first == ttpName }
                 if (index2 != -1) {
                     myShares[index2] = ttpName to allTTPs?.get(index)!!.connected_Users.first{ it.first == name }.second
-
-                } else {
-                    print("Name not found in the list")
                 }
+                } 
 
             }
             else{

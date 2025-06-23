@@ -150,15 +150,15 @@ object CallbackLibrary {
 
             if ((user.myShares.count { it.second.isNotEmpty() } >= User.minimum_shares) && !user.identified) {
                 val indexedMap: Map<Int, ByteArray> = user.myShares
-                    .filter { it.second.isNotEmpty() }
                     .mapIndexed { newIndex, pair -> (newIndex + 1) to pair.second }
+                    .filter { it.second.isNotEmpty() }
                     .toMap()
 
                 val recovered = user.scheme.join(indexedMap)
                 val recoveredString = String(recovered, Charsets.UTF_8)
-                Log.i("adr_recovery", "i should be recovering right about now... Verification: ${recoveredString == user.Identification_Value}")
+                Log.i("adr_recovery", "i should be recovering right about now... $indexedMap Verification: ${recoveredString == user.Identification_Value}")
                 Toast.makeText(context, "Recovery of secret: ${user.Identification_Value == recoveredString} - $recoveredString", Toast.LENGTH_LONG).show()
-                user.identified = true
+                user.identified = (recoveredString == user.Identification_Value)
             }
 
             val balanceField = view.findViewById<TextView>(R.id.user_home_balance)
