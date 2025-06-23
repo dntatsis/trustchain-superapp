@@ -230,8 +230,11 @@ class User(
         }
         if (!isAllRoles) {
 
-        communicationProtocol.requestShare(signature,name,ttpName)
-        communicationProtocol.requestShare(Schnorr.schnorrSignature(privateKey, ("Alice:" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group),"Alice",ttpName) // fails - unless you're alice
+            val share = communicationProtocol.requestShare(signature,name,ttpName)
+            var index2 = myShares.indexOfFirst { it.first == ttpName }
+            if (index2 != -1) {
+                myShares[index2] = ttpName to share
+            }
         }
         else{
             val signedMessage = signature.signedMessage.toString(Charsets.UTF_8)         // Extract signed message and verify timestamp and sender match

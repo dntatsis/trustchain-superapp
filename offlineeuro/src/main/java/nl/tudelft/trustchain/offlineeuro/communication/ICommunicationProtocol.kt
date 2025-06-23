@@ -18,7 +18,7 @@ interface ICommunicationProtocol {
         signature: SchnorrSignature,
         name: String,
         ttpname: String
-    )
+    ): ByteArray
 
     fun register(
         userName: String,

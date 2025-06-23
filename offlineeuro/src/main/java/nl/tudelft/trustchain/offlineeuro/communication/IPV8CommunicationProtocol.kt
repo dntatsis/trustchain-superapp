@@ -99,10 +99,13 @@ class IPV8CommunicationProtocol(
         signature: SchnorrSignature,
         name : String,
         ttpname: String
-    ){
+    ):ByteArray {
         val ttpAddress = addressBookManager.getAddressByName(ttpname)
 
         community.requestSharefromTTP(signature, name, ttpAddress.peerPublicKey!!)
+        val replyMessage =
+            waitForMessage(CommunityMessageType.ShareResponseMessage) as ShareResponseMessage
+        return replyMessage.secretShare
     }
     override fun connect( // send your share to a connected TTP
         userName: String,
