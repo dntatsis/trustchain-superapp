@@ -77,7 +77,7 @@ class PerformanceTest {
         createBank()
         val user = createTestUser()
         val euro = withdrawDigitalEuro(user, bank.name)
-        val walletEntry = addProofsToDigitalEuro(user.wallet.getWalletEntryToSpend()!!, 51)
+        val walletEntry = addProofsToDigitalEuro(user.wallet!!.getWalletEntryToSpend()!!, 51)
     }
 
     private fun addProofsToDigitalEuro(

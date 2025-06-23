@@ -607,15 +607,14 @@ class OfflineEuroCommunity(
     }
 
     fun sendFraudControlReply(
-        result: String,
+        result: ByteArray?,
         peer: Peer
     ) {
+        val payload = ByteArrayPayload(result ?: ByteArray(0))
         val packet =
             serializePacket(
                 MessageID.FRAUD_CONTROL_REPLY,
-                ByteArrayPayload(
-                    result.toByteArray()
-                )
+                payload
             )
         send(peer, packet)
     }
@@ -626,7 +625,7 @@ class OfflineEuroCommunity(
     }
 
     fun onFraudControlReply(payload: ByteArrayPayload) {
-        val fraudControlResult = payload.bytes.toString(Charsets.UTF_8)
+        val fraudControlResult = payload.bytes
         addMessage(FraudControlReplyMessage(fraudControlResult))
     }
 

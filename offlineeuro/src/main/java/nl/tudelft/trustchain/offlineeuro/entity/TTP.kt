@@ -25,10 +25,12 @@ open class TTP(
     onDataChangeCallback: ((String?) -> Unit)? = null,
     var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
-        var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
-        lateinit var regCrs: CRS
-        val crsMap: Map<Element, Element>
-        init {
+
+    var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
+    lateinit var regCrs: CRS
+    val crsMap: Map<Element, Element>
+
+    init {
         communicationProtocol.participant = this
         this.group = group
         val generatedCRS = CRSGenerator.generateCRSMap(group)
@@ -79,9 +81,11 @@ open class TTP(
         Log.d("RegisteredUsers for $name: ", registeredUserManager.getAllRegisteredUsers().toString())
         return registeredUserManager.getAllRegisteredUsers()
     }
-        fun getConnectedUsers(): List<ConnectedUser> {
-            return connectedUserManager.getAllConnectedUsers()
-        }
+
+    fun getConnectedUsers(): List<ConnectedUser> {
+        return connectedUserManager.getAllConnectedUsers()
+    }
+
     override fun onReceivedTransaction(
         transactionDetails: TransactionDetails,
         publicKeyBank: Element,
@@ -92,7 +96,6 @@ open class TTP(
 
     fun getUserFromProof(grothSahaiProof: GrothSahaiProof): RegisteredUser? {
         val crsExponent = crsMap[crs.u]
-        val test = group.g.powZn(crsExponent)
         val publicKey =
             grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
 
@@ -102,17 +105,16 @@ open class TTP(
     fun getUserFromProofs(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof
-    ): String {
+    ): ByteArray? {
         val firstPK = getUserFromProof(firstProof)
         val secondPK = getUserFromProof(secondProof)
 
-        return if (firstPK != null && firstPK == secondPK) {
+        if (firstPK != null && firstPK == secondPK) {
             onDataChangeCallback?.invoke("Found proof that  ${firstPK.name} committed fraud!")
-            "Double spending detected. Double spender is ${firstPK.name} with PK: ${firstPK.publicKey}"
-            // TODO: send message to other TTPs in order to deanonymize
+            return getSharefromTTP(firstPK.name)
         } else {
             onDataChangeCallback?.invoke("Invalid fraud request received!")
-            "No double spending detected"
+            return null
         }
     }
 
@@ -120,14 +122,3 @@ open class TTP(
         registeredUserManager.clearAllRegisteredUsers()
     }
 }
-
-    class REGTTP (
-    name: String = "REGTTP",
-    group: BilinearGroup,
-    communicationProtocol: ICommunicationProtocol,
-    context: Context?,
-    registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
-    connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
-    onDataChangeCallback: ((String?) -> Unit)? = null
-
-) : TTP(name,group,communicationProtocol,context,registeredUserManager,connectedUserManager,onDataChangeCallback)

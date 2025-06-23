@@ -14,7 +14,7 @@ class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommun
             FraudControlRequestMessage::class.java,
             TTPConnectionMessage::class.java,
             ShareRequestMessage::class.java,
-            ShareResponseMessage::class.java
+//            ShareResponseMessage::class.java
             )
 
     override fun add(element: ICommunityMessage): Boolean {

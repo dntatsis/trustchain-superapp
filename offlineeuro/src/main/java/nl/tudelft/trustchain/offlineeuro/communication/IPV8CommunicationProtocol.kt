@@ -45,6 +45,8 @@ import kotlinx.coroutines.delay
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
+import java.security.SecureRandom
 import kotlin.math.abs
 
 
@@ -99,11 +101,16 @@ class IPV8CommunicationProtocol(
         signature: SchnorrSignature,
         name : String,
         ttpname: String
-    ){
+    ): ByteArray {
         val ttpAddress = addressBookManager.getAddressByName(ttpname)
 
         community.requestSharefromTTP(signature, name, ttpAddress.peerPublicKey!!)
+
+        val replyMessage =
+            waitForMessage(CommunityMessageType.ShareResponseMessage) as ShareResponseMessage
+        return replyMessage.secretShare
     }
+
     override fun connect( // send your share to a connected TTP
         userName: String,
         secretShare: ByteArray,
@@ -166,16 +173,32 @@ class IPV8CommunicationProtocol(
     override fun requestFraudControl(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof,
-        nameTTP: String
     ): String {
-        val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-        community.sendFraudControlRequest(
-            GrothSahaiSerializer.serializeGrothSahaiProof(firstProof),
-            GrothSahaiSerializer.serializeGrothSahaiProof(secondProof),
-            ttpAddress.peerPublicKey!!
-        )
-        val message = waitForMessage(CommunityMessageType.FraudControlReplyMessage) as FraudControlReplyMessage
-        return message.result
+        val ttpAddress =addressBookManager.getAllAddresses().filter { address ->  address.type == Role.REG_TTP || address.type == Role.TTP}
+        val messages = mutableMapOf<Address, FraudControlReplyMessage>()
+        for (ttpVal in ttpAddress) {
+            community.sendFraudControlRequest(
+                GrothSahaiSerializer.serializeGrothSahaiProof(firstProof),
+                GrothSahaiSerializer.serializeGrothSahaiProof(secondProof),
+                ttpVal.peerPublicKey!!
+            )
+            val message = waitForMessage(CommunityMessageType.FraudControlReplyMessage) as FraudControlReplyMessage
+            messages[ttpVal] = message
+        }
+
+        val sortedMessages = messages
+            .toList()
+            .sortedBy { it.first.name }
+            .map { it.second.result }
+
+        val partialPart = sortedMessages.mapIndexed { index, message ->
+            (index + 1) to message
+        }.toMap()
+        val scheme = Scheme(SecureRandom(), 3, 2)
+
+        val recovered = scheme.join(partialPart)
+        val recoveredString = String(recovered, Charsets.UTF_8)
+        return recoveredString
     }
 
     fun scopePeers() {
@@ -344,7 +367,8 @@ class IPV8CommunicationProtocol(
             return
         }
 
-        val group = if (participant is REGTTP) ttp.group else ttp.regGroup
+//        val group = if (participant is REGTTP) ttp.group else ttp.regGroup
+        val group = ttp.group
 
         Log.i("adr", "g = ${group.g}")
         Log.i("adr", "group order = ${group.getZrOrder()}")
@@ -366,22 +390,22 @@ class IPV8CommunicationProtocol(
             community.sendShareRequestResponsePacket(message.peer, response)
         }
     }
-    private fun handleShareResponseMessage(message: ShareResponseMessage){ // When receiving a Share Response, trigger the callback
-        if(participant is User && message.userName == participant.name){
-            // partial secret share has been returned.
-                val index = (participant as User).myShares.indexOfFirst { it.first == message.sender }
-
-                if (index != -1) {
-                    (participant as User).myShares[index] = message.sender to message.secretShare
-                } else {
-                    print("Name not found in the list")
-                }
-            participant.onDataChangeCallback?.invoke("secret_share_recv " + message.secretShare.toString())
-        }
-        // TODO: add bank logic here
-        return
-
-    }
+//    private fun handleShareResponseMessage(message: ShareResponseMessage){ // When receiving a Share Response, trigger the callback
+//        if(participant is User && message.userName == participant.name){
+//            // partial secret share has been returned.
+//                val index = (participant as User).myShares.indexOfFirst { it.first == message.sender }
+//
+//                if (index != -1) {
+//                    (participant as User).myShares[index] = message.sender to message.secretShare
+//                } else {
+//                    print("Name not found in the list")
+//                }
+//            participant.onDataChangeCallback?.invoke("secret_share_recv " + message.secretShare.toString())
+//        }
+//        // TODO: add bank logic here
+//        return
+//
+//    }
     private fun handleConnectionMessage(message: TTPConnectionMessage) { // Handle TTP Connection message by adding the share to the participants secret share library.
         if (participant !is REGTTP && participant !is TTP) {
             return
@@ -396,7 +420,7 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleFraudControlRequestMessage(message: FraudControlRequestMessage) {
-        if (getParticipantRole() != Role.REG_TTP) {
+        if (getParticipantRole() != Role.REG_TTP && participant !is TTP) {
             return
         }
         val ttp = participant as TTP
@@ -410,7 +434,7 @@ class IPV8CommunicationProtocol(
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
             is ShareRequestMessage -> handleShareRequestMessage(message)
-            is ShareResponseMessage -> handleShareResponseMessage(message)
+//            is ShareResponseMessage -> handleShareResponseMessage(message)
             is TTPConnectionMessage -> handleConnectionMessage(message)
             is AddressRequestMessage -> handleAddressRequestMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)

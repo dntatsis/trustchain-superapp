@@ -117,14 +117,16 @@ class Bank(
             try {
                 lateinit var dsResult: String
 
-                if(!isAllRoles){
-                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
+                dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof)
 
-                }
-                else{
-                    dsResult = ParticipantHolder.regttp!!.getUserFromProofs(euroProof, depositProof)
-
-                }
+//                if(!isAllRoles){
+//                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
+//
+//                }
+//                else{
+//                    dsResult = ParticipantHolder.regttp!!.getUserFromProofs(euroProof, depositProof)
+//
+//                }
 
                 if (dsResult != "") {
                     depositedEuroLogger.add(Pair(euro.serialNumber, true))

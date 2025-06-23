@@ -29,14 +29,15 @@ class User(
     var Identification_Value: String = "",
     val connected: MutableList<String> = mutableListOf(),
     var identified: Boolean = false,
-    val n: Int = 2,
+    val n: Int = 3,
     val k: Int = 2
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
 
     lateinit var scheme: Scheme
     lateinit var wallet: Wallet
     val myShares: MutableList<Pair<String,ByteArray>> =  MutableList(n) { Pair("", ByteArray(0)) }
-        init {
+
+    init {
         communicationProtocol.participant = this
         this.group = group
 
@@ -219,7 +220,7 @@ class User(
         return
     }
 
-    fun recoverShare(ttpName: String){
+    fun recoverShare(ttpName: String): ByteArray {
         Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
         val signature = Schnorr.schnorrSignature(privateKey, (name + ":" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group)
 
@@ -239,7 +240,9 @@ class User(
                 Log.i("adr", "$signedMessage seems fine (not expired, matching sender)")
             } else {
                 Log.i("adr", "Invalid signature timestamp or user mismatch. Time diff: ${System.currentTimeMillis() - (signedTime ?: 0)}")
-                return
+//                return null
+                return ByteArray(0)
+
             }
             val allTTPs = ParticipantHolder.ttp?.plus(ParticipantHolder.regttp)
 
@@ -252,7 +255,9 @@ class User(
 
             if (senderPK == null) {
                 Log.i("adr", "User $name not found in address book.")
-                return
+//                return null
+                return ByteArray(0)
+
             }
             val group = index?.let { allTTPs?.get(it)?.group }!!
 
@@ -274,14 +279,12 @@ class User(
 
 
         }
+        return communicationProtocol.requestShare(signature,name,ttpName)
     }
 
     fun withdrawDigitalEuro(bank: String): DigitalEuro {
-
         val serialNumber = UUID.randomUUID().toString()
-
         val firstT = group.getRandomZr()
-
         val tInv = firstT.mul(-1)
         val initialTheta = group.g.powZn(tInv).immutable
 
@@ -331,7 +334,9 @@ class User(
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
         Log.i("Withdraw", "Withdrawal complete")
 
-        return digitalEuro }
+        return digitalEuro
+    }
+
     fun getBalance(): Int {
         return walletManager!!.getWalletEntriesToSpend().count()
     }
