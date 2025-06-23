@@ -18,7 +18,7 @@ interface ICommunicationProtocol {
         signature: SchnorrSignature,
         name: String,
         ttpname: String
-    )
+    ): ByteArray
 
     fun register(
         userName: String,
@@ -56,7 +56,6 @@ interface ICommunicationProtocol {
     fun requestFraudControl(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof,
-        nameTTP: String
     ): String
 
     fun getPublicKeyOf(

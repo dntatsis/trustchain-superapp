@@ -23,7 +23,7 @@ class WalletManagerTest {
 
     private val upperBound = BigInteger("9999999999")
     private val group = BilinearGroup()
-    private val walletManager = WalletManager(null, group, driver)
+    private val walletManager = WalletManager(null, group, "", driver)
 
     @Before
     fun before() {

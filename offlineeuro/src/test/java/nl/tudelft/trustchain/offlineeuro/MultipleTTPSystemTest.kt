@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.offlineeuro
 
-import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
@@ -14,16 +13,22 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequest
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ShareRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ShareResponseMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TTPConnectionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
+import nl.tudelft.trustchain.offlineeuro.community.payload.ShareResponsePayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
@@ -38,88 +43,92 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionResult
 import nl.tudelft.trustchain.offlineeuro.entity.User
-import nl.tudelft.trustchain.offlineeuro.entity.Wallet
 import nl.tudelft.trustchain.offlineeuro.enums.Role
-import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
-import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.Mockito.atLeastOnce
-import org.mockito.Mockito.doAnswer
-import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
-import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
 import java.math.BigInteger
+import java.security.SecureRandom
 
-class SystemTest {
+class MultipleTTPSystemTest {
     // Setup the TTP
     private val group: BilinearGroup = BilinearGroup(PairingTypes.A)
     private lateinit var ttp: TTP
+    private lateinit var ttpList: List<TTP>
     private lateinit var ttpCommunity: OfflineEuroCommunity
     private lateinit var crs: CRS
     private val userList = hashMapOf<User, OfflineEuroCommunity>()
+    private val ttpCommunityList = hashMapOf<TTP, OfflineEuroCommunity>()
     private lateinit var bank: Bank
     private lateinit var bankCommunity: OfflineEuroCommunity
     private var i = 0
 
-    lateinit var logMock: MockedStatic<Log>
-
-    @Before
-    fun mockAndroidLog() {
-        logMock = mockStatic(Log::class.java)
-
-        logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
-        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
-    }
-
-    @After
-    fun closeAndroidLogMock() {
-        logMock.close()
-    }
-
-    @Before
-    fun setup() {
-        // Initiate
-        createTTP()
-        createBank()
-        val firstProofCaptor = argumentCaptor<ByteArray>()
-        val secondProofCaptor = argumentCaptor<ByteArray>()
-        `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(), any())).then {
-            val firstProofBytes = firstProofCaptor.lastValue
-            val secondProofBytes = secondProofCaptor.lastValue
-
-            val peerMock = Mockito.mock(Peer::class.java)
-            val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
-
-            val fraudControlResultCaptor = argumentCaptor<ByteArray>()
-            `when`(ttpCommunity.sendFraudControlReply(fraudControlResultCaptor.capture(), any())).then {
-                val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
-                bankCommunity.messageList.add(replyMessage)
-            }
-
-            ttpCommunity.messageList.add(fraudControlRequestMessage)
-        }
-    }
+//    @Test
+//    fun connectToTTPAndRequestShareTest() {
+//        createTTP()
+//        val user = createTestUser()
+//
+//        //Register all participants in user list
+//        addMessageToList(user, AddressMessage(ttp.name, Role.REG_TTP, ttp.publicKey.toBytes(), ttp.name.toByteArray()))
+//        ttpList.forEach {addTTP ->  addMessageToList(user, AddressMessage(addTTP.name, Role.TTP, addTTP.publicKey.toBytes(), addTTP.name.toByteArray()))}
+//        ttpCommunityList.values.forEach{community -> community.messageList.add(AddressMessage(user.name, Role.User, user.publicKey.toBytes(), user.name.toByteArray()))}
+//
+//        connectUserToTTP(user, ttp)
+//        ttpList.forEach { addTTP -> connectUserToTTP(user, addTTP) }
+//
+//
+//        val share = requestShare(user, ttp)
+//        val share2 = requestShare(user, ttpList.get(0))
+//        val share3 = requestShare(user, ttpList.get(1))
+//
+//        val scheme = Scheme(SecureRandom(), 3, 2)
+//        val partialPart = mapOf(
+//            1 to share,
+//            2 to share2
+//        )
+//        val recovered = scheme.join(partialPart)
+//        val recoveredString = String(recovered, Charsets.UTF_8)
+//        Assert.assertEquals(recoveredString, "my secret share")
+//
+//        val partialPart2 = mapOf(
+//            2 to share2,
+//            3 to share3
+//        )
+//        val recovered2 = scheme.join(partialPart2)
+//        val recoveredString2 = String(recovered2, Charsets.UTF_8)
+//        Assert.assertEquals(recoveredString2, "my secret share")
+//    }
 
     @Test
-    fun withdrawSpendDepositDoubleSpendDepositTest() {
+    fun connectToTTPAndRequestShareByBankTest() {
+        createTTP()
+        createBank()
         val user = createTestUser()
 
-        // Assert that the group descriptions and crs are equal
-        Assert.assertEquals("The group descriptions should be equal", bank.group, user.group)
-        Assert.assertEquals("The group descriptions should be equal", bank.crs, user.crs)
-        Assert.assertEquals("The group descriptions should be equal", ttp.crs, user.crs)
+        //Register all participants in user list
+        addMessageToList(user, AddressMessage(ttp.name, Role.REG_TTP, ttp.publicKey.toBytes(), ttp.name.toByteArray()))
+        ttpList.forEach {addTTP ->  addMessageToList(user, AddressMessage(addTTP.name, Role.TTP, addTTP.publicKey.toBytes(), addTTP.name.toByteArray()))}
+        ttpCommunityList.values.forEach{community -> community.messageList.add(AddressMessage(user.name, Role.User, user.publicKey.toBytes(), user.name.toByteArray()))}
+
+        connectUserToTTP(user, ttp)
+        ttpList.forEach { addTTP -> connectUserToTTP(user, addTTP) }
 
         val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
         addMessageToList(user, bankAddressMessage)
         bankCommunity.messageList.add(bankAddressMessage)
+        ttpCommunityList.values.forEach{addTTPCommunity -> addTTPCommunity.messageList.add(bankAddressMessage)}
+
+        ttpCommunity.messageList.add(AddressMessage(ttp.name, Role.REG_TTP, ttp.publicKey.toBytes(), ttp.name.toByteArray()))
+        ttpList.forEach {addTTP ->  ttpCommunityList[addTTP]!!.messageList.add(AddressMessage(addTTP.name, Role.TTP, addTTP.publicKey.toBytes(), addTTP.name.toByteArray()))}
+
         val digitalEuro = withdrawDigitalEuro(user, bank.name)
 
         // Validations on the wallet
@@ -155,18 +164,55 @@ class SystemTest {
         // Double Spend
         spendEuro(user, user3, doubleSpend = true)
 
+        ttpCommunityList.keys.forEach { addTTP ->
+            val firstProofCaptor = argumentCaptor<ByteArray>()
+            val secondProofCaptor = argumentCaptor<ByteArray>()
+            `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(),
+                argThat{peerPublicKey -> peerPublicKey.contentEquals((addTTP.communicationProtocol as IPV8CommunicationProtocol).addressBookManager.getAddressByName(addTTP.name).peerPublicKey!!)})).then {
+                val firstProofBytes = firstProofCaptor.lastValue
+                val secondProofBytes = secondProofCaptor.lastValue
+
+                val peerMock = Mockito.mock(Peer::class.java)
+                val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
+                val fraudControlResultCaptor = argumentCaptor<ByteArray>()
+                `when`(
+                    ttpCommunityList[addTTP]!!.sendFraudControlReply(
+                        fraudControlResultCaptor.capture(),
+                        any()
+                    )
+                ).then {
+                    val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
+                    bankCommunity.messageList.add(replyMessage)
+                }
+                ttpCommunityList[addTTP]!!.messageList.add(fraudControlRequestMessage)
+            }
+        }
+
         // Deposit double spend Euro
         spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
-    }
 
-    @Test
-    fun getManyBlindSignatures() {
-        val user = createTestUser()
-        val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
-        addMessageToList(user, bankAddressMessage)
-        bankCommunity.messageList.add(bankAddressMessage)
-        for (i in 0 until 50)
-            withdrawDigitalEuro(user, bank.name)
+
+
+//        val share = requestShare(user, ttp)
+//        val share2 = requestShare(user, ttpList.get(0))
+//        val share3 = requestShare(user, ttpList.get(1))
+//
+//        val scheme = Scheme(SecureRandom(), 3, 2)
+//        val partialPart = mapOf(
+//            1 to share,
+//            2 to share2
+//        )
+//        val recovered = scheme.join(partialPart)
+//        val recoveredString = String(recovered, Charsets.UTF_8)
+//        Assert.assertEquals(recoveredString, "my secret share")
+//
+//        val partialPart2 = mapOf(
+//            2 to share2,
+//            3 to share3
+//        )
+//        val recovered2 = scheme.join(partialPart2)
+//        val recoveredString2 = String(recovered2, Charsets.UTF_8)
+//        Assert.assertEquals(recoveredString2, "my secret share")
     }
 
     private fun withdrawDigitalEuro(
@@ -227,6 +273,37 @@ class SystemTest {
         return withdrawnEuro
     }
 
+    private fun connectUserToTTP(user: User, ttp: TTP) {
+        val secretShareCaptor = argumentCaptor<ByteArray>()
+        val ttpCommunity = ttpCommunityList[ttp]!!
+        val userCommunity = userList[user]!!
+
+        `when`(userCommunity.connectAtTTP(eq(user.name), secretShareCaptor.capture(), argThat{peerPublicKey -> peerPublicKey.contentEquals((user.communicationProtocol as IPV8CommunicationProtocol).addressBookManager.getAddressByName(ttp.name).peerPublicKey!!)})).then {
+
+            val ttpConnectionMessage = TTPConnectionMessage(user.name, secretShareCaptor.lastValue)
+            ttpCommunity.messageList.add(ttpConnectionMessage)
+        }
+        user.connectToTTP(ttp.name)
+    }
+
+    private fun requestShare(user: User, ttp: TTP) {
+        val signatureCaptor = argumentCaptor<SchnorrSignature>()
+        val ttpCommunity = ttpCommunityList[ttp]!!
+        val userCommunity = userList[user]!!
+        val userPeer = Mockito.mock(Peer::class.java)
+
+        `when`(userCommunity.requestSharefromTTP(signatureCaptor.capture(), eq(user.name), any())).then {
+            val shareRequestMessage = ShareRequestMessage(signatureCaptor.lastValue, user.name, userPeer)
+            val sharePayloadCaptor = argumentCaptor<ShareResponsePayload>()
+            `when`(ttpCommunity.sendShareRequestResponsePacket(any(), sharePayloadCaptor.capture())).then {
+                val sharePayload = sharePayloadCaptor.lastValue
+                val shareResponseMessage = ShareResponseMessage(sharePayload.userName, sharePayload.secretShare, sharePayload.sender)
+                userCommunity.messageList.add(shareResponseMessage)
+            }
+            ttpCommunity.messageList.add(shareRequestMessage)
+        }
+    }
+
     private fun spendEuro(
         sender: User,
         receiver: Participant,
@@ -280,7 +357,7 @@ class SystemTest {
         Assert.assertEquals(expectedResult, transactionResult)
     }
 
-    fun createTestUser(): User {
+    private fun createTestUser(): User {
         // Start with a random group
         val addressBookManager = createAddressManager(group)
         val walletManager = WalletManager(null, group, "", createDriver())
@@ -290,31 +367,47 @@ class SystemTest {
         val community = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
-        `when`(community.messageList).thenReturn(communicationProtocol.messageList)
-        val user = User(userName, group, null, walletManager, communicationProtocol, runSetup = false)
-        user.generateKeyPair()
-        user.wallet = Wallet(user.privateKey, user.publicKey, walletManager)
+        Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
+        val user = User(userName, group, null, walletManager, communicationProtocol, runSetup = false, Identification_Value = "my secret share")
         user.crs = crs
         user.group = group
         userList[user] = community
         ttp.registerUser(user.name, user.publicKey)
+        ttpList.forEach{addTTP ->
+            addTTP.registerUser(user.name, user.publicKey)
+        }
         return user
     }
 
     private fun createTTP() {
         val addressBookManager = createAddressManager(group)
         val registeredUserManager = RegisteredUserManager(null, group, createDriver())
+        val connectedUserManager = ConnectedUserManager(null, createDriver())
 
         ttpCommunity = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, ttpCommunity)
 
-        `when`(ttpCommunity.messageList).thenReturn(communicationProtocol.messageList)
-        val connectedUserManager = mock<ConnectedUserManager>()
-        whenever(connectedUserManager.addConnectedUser(any(), any())).thenReturn(true)
-
-        ttp = REGTTP("TTP", group, communicationProtocol, null, registeredUserManager, connectedUserManager=connectedUserManager)
+        Mockito.`when`(ttpCommunity.messageList).thenReturn(communicationProtocol.messageList)
+        ttp = REGTTP("TTP", group, communicationProtocol, null, registeredUserManager, connectedUserManager)
+        ttpCommunityList[ttp] = ttpCommunity
         crs = ttp.crs
-        communicationProtocol.participant = ttp
+
+        ttpList = MutableList(2) { index ->
+            val ttpName = "TTP $index"
+            val additionalTtpCommunity = prepareCommunityMock()
+            val addTTPCommunicationProtocol = IPV8CommunicationProtocol(createAddressManager(group), additionalTtpCommunity)
+
+            Mockito.`when`(additionalTtpCommunity.messageList).thenReturn(addTTPCommunicationProtocol.messageList)
+            val addTTP = TTP(
+                name = ttpName,
+                group = group,
+                communicationProtocol = addTTPCommunicationProtocol,
+                context = null,
+                RegisteredUserManager(null, group, createDriver()),
+                ConnectedUserManager(null, createDriver()))
+            ttpCommunityList[addTTP] = additionalTtpCommunity
+            addTTP
+        }
     }
 
     private fun createBank() {
@@ -324,17 +417,14 @@ class SystemTest {
         bankCommunity = prepareCommunityMock()
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, bankCommunity)
 
-        `when`(bankCommunity.messageList).thenReturn(communicationProtocol.messageList)
-        `when`(bankCommunity.sendFraudControlRequest(any(), any(), any())).then { invocation ->
-            val fraudControlReply = FraudControlReplyMessage("test123".toByteArray())
-            bankCommunity.messageList.add(fraudControlReply)
-            null
-        }
-
+        Mockito.`when`(bankCommunity.messageList).thenReturn(communicationProtocol.messageList)
         bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, runSetup = false)
-        bank.generateKeyPair()
         bank.crs = crs
-        addressBookManager.insertAddress(Address(ttp.name, Role.TTP, ttp.publicKey, "SomeTTPPubKey".toByteArray()))
+        addressBookManager.insertAddress(Address(ttp.name, Role.REG_TTP, ttp.publicKey, "SomeTTPPubKey".toByteArray()))
+        ttpList.forEach{addTTP ->
+            addressBookManager.insertAddress(Address(addTTP.name, Role.TTP, addTTP.publicKey, ("SomeTTPPubKey" + addTTP.name).toByteArray()))
+            addTTP.registerUser(bank.name, bank.publicKey)
+        }
         ttp.registerUser(bank.name, bank.publicKey)
     }
 

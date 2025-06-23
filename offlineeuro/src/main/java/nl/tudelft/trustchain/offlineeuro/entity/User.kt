@@ -42,6 +42,8 @@ class User(
         communicationProtocol.participant = this
         this.group = group
 
+
+            // TODO: Fix setup here
         if (runSetup) generateKeyPair()
 
         if (walletManager == null) {
@@ -223,7 +225,7 @@ class User(
     }
 
     fun recoverShare(ttpName: String){
-        Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
+//        Log.i("adr_recover","asking to recover my share. my private is $privateKey\nmy public is $publicKey")
         val signature = Schnorr.schnorrSignature(privateKey, (name + ":" + System.currentTimeMillis().toString()).toByteArray(Charsets.UTF_8), group)
 
         if (!isAllRoles) {
