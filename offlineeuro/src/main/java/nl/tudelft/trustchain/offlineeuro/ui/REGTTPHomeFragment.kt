@@ -61,7 +61,8 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
                 else{
                     onDataChangeCallback("Refresh!")
                 }
-            }        }
+            }
+        }
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->

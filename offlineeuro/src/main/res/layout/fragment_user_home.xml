@@ -79,7 +79,7 @@
                         />
 
                 </LinearLayout>
-            <include layout="@layout/component_address_book" />
+            <include layout="@layout/component_address_book_user" />
         </LinearLayout>
 
 

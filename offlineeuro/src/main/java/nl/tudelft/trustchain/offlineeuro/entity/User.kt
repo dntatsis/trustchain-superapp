@@ -29,13 +29,15 @@ class User(
     var Identification_Value: String = "",
     val connected: MutableList<String> = mutableListOf(),
     var identified: Boolean = false,
-    val n: Int = 2,
-    val k: Int = 2
-) : Participant(communicationProtocol, name, onDataChangeCallback) {
 
+) : Participant(communicationProtocol, name, onDataChangeCallback) {
+    companion object {
+        const val maximum_shares = 2
+        const val minimum_shares = 1
+    }
     lateinit var scheme: Scheme
     lateinit var wallet: Wallet
-    val myShares: MutableList<Pair<String,ByteArray>> =  MutableList(n) { Pair("", ByteArray(0)) }
+    val myShares: MutableList<Pair<String,ByteArray>> =  MutableList(maximum_shares) { Pair("", ByteArray(0)) }
         init {
         communicationProtocol.participant = this
         this.group = group
@@ -43,7 +45,8 @@ class User(
         if (runSetup) generateKeyPair()
 
         if (walletManager == null) {
-            walletManager = WalletManager(context, group)
+            walletManager = WalletManager(context, group,"wallet_$name")
+            Log.i("Adr wallet manager", walletManager.toString())
         }
     }
 
@@ -180,12 +183,12 @@ class User(
             // add element to connected TTP list
             connected.add(address.name)
             onDataChangeCallback?.invoke("connectedChange")
-            if (connected.size >= n) {
+            if (connected.size >= maximum_shares) {
                 // if n connections, secret share
-                scheme = Scheme(SecureRandom(), n, k)
+                scheme = Scheme(SecureRandom(), maximum_shares, minimum_shares)
                 val parts =
                     scheme.split(Identification_Value.toByteArray(Charsets.UTF_8))
-                val partialParts = parts.entries.take(n).associate { it.toPair() }
+                val partialParts = parts.entries.take(maximum_shares).associate { it.toPair() }
                 val partsList = partialParts.values.toList()
                 connected.sort() // sort alphabetically for recovery
 
@@ -324,9 +327,10 @@ class User(
         val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
 
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
-        Log.i("Withdraw", "Created DEuro")
+        Log.i("Withdraw", "Created DEuro, ${wallet.getAllWalletEntriesToSpend()}")
 
         wallet.addToWallet(digitalEuro, firstT)
+        Log.i("Withdraw", "added DEuro, ${wallet.getAllWalletEntriesToSpend()}")
 
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
         Log.i("Withdraw", "Withdrawal complete")

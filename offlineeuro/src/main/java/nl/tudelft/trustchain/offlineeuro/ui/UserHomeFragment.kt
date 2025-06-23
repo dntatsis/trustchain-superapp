@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -115,31 +116,28 @@ class UserHomeFragment(val count: Int) : OfflineEuroBaseFragment(R.layout.fragme
     }
 
     fun updateConnectedInfo(view: View) {
+        if (!::user.isInitialized) return
         val listTextView = view.findViewById<TextView>(R.id.print_connected_ttps)
-
-        var connectedTemplate = "List of connected TTPs (_size_): _vals_"
-        var updatedText = connectedTemplate
+        val connectedTemplate = "List of connected TTPs (_size_): _vals_"
+        val updatedListText = connectedTemplate
             .replace("_size_", user.connected.size.toString())
             .replace("_vals_", user.connected.joinToString(", "))
 
-        listTextView.text = updatedText
+        listTextView?.text = updatedListText
 
         val userConnectedTextView = view.findViewById<TextView>(R.id.user_home_connection_status)
-        connectedTemplate = "You are _connection_status_"
-        if(user.identified){
-             updatedText = connectedTemplate
-                .replace("_connection_status_", "identified!")
-            userConnectedTextView.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_green_dark))
-        }
-        else{
-            updatedText = connectedTemplate
-                .replace("_connection_status_", "unidentified!")
-            userConnectedTextView.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark))
+        val connectionTemplate = "You are _connection_status_"
+        val updatedConnectionText: String
 
+        if (user.identified) {
+            updatedConnectionText = connectionTemplate.replace("_connection_status_", "identified!")
+            userConnectedTextView?.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_green_dark))
+        } else {
+            updatedConnectionText = connectionTemplate.replace("_connection_status_", "unidentified!")
+            userConnectedTextView?.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark))
         }
 
-        userConnectedTextView.text = updatedText
-
+        userConnectedTextView?.text = updatedConnectionText
     }
 
 }

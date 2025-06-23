@@ -24,6 +24,7 @@ open class TTP(
     val connectedUserManager: ConnectedUserManager = ConnectedUserManager(context),
     onDataChangeCallback: ((String?) -> Unit)? = null,
     var connected_Users: MutableList<Pair<String,ByteArray>> = mutableListOf(),
+    val active: Boolean = true,
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
         var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
         lateinit var regCrs: CRS

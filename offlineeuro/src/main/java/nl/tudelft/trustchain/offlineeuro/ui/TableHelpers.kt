@@ -46,28 +46,32 @@ object TableHelpers {
     ): LinearLayout {
         val layout =
             LinearLayout(context).apply {
-                layoutParams = rowParams()
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
                 orientation = LinearLayout.HORIZONTAL
             }
 
         val idField =
             TextView(context).apply {
                 text = user.id.toString()
-                layoutParams = layoutParams(0.2f)
-                gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = layoutParams(0.3f)
+                gravity = Gravity.CENTER
             }
 
         val nameField =
             TextView(context).apply {
                 text = user.name
-                layoutParams = layoutParams(0.2f)
-                gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = layoutParams(0.3f)
+                gravity = Gravity.CENTER
             }
 
         val publicKeyField =
             TextView(context).apply {
-                text = user.publicKey.toString()
-                layoutParams = layoutParams(0.7f)
+                text = user.publicKey.toString().take(10) + "..."
+                layoutParams = layoutParams(0.4f)
+                gravity = Gravity.CENTER
             }
 
         layout.addView(idField)
@@ -139,19 +143,31 @@ object TableHelpers {
         val styledContext = ContextThemeWrapper(context, R.style.TableCell)
         val roleField =
             TextView(styledContext).apply {
-                layoutParams = layoutParams(0.2f)
+                val weight = if (participant is User) 0.1f else 0.2f
+                layoutParams = layoutParams(weight)
                 text = address.type.toString()
+                gravity = Gravity.CENTER
+
             }
+
         val nameField =
             TextView(styledContext).apply {
-                layoutParams = layoutParams(0.5f)
+                val weight = if (participant is User) 0.3f else 0.4f
+
+                layoutParams = layoutParams(weight)
                 text = address.name
+                gravity = Gravity.CENTER
+
             }
 
         val publicKeyField =
             TextView(styledContext).apply {
-                layoutParams = layoutParams(0.5f)
+                val weight = if (participant is User) 0.3f else 0.4f
+
+                layoutParams = layoutParams(weight)
                 text = ((address.publicKey.toString()).take(10)) + "..."
+                gravity = Gravity.CENTER
+
             }
         tableRow.addView(roleField)
 
@@ -159,14 +175,19 @@ object TableHelpers {
         tableRow.addView(publicKeyField)
 
         if (participant is User){
-            val buttonWrapper = LinearLayout(context)
-            val params = layoutParams(0.8f)
-            buttonWrapper.gravity = Gravity.CENTER_HORIZONTAL
-            buttonWrapper.orientation = LinearLayout.HORIZONTAL
-            buttonWrapper.layoutParams = params
+            val buttonWrapper = LinearLayout(context).apply {
+                layoutParams = layoutParams(0.3f)
+                orientation = LinearLayout.HORIZONTAL
+            }
+            val buttonWeight = 0.5f
 
+            buttonWrapper.orientation = LinearLayout.HORIZONTAL
+            buttonWrapper.gravity = Gravity.CENTER_HORIZONTAL
             val mainActionButton = Button(context)
             val secondaryButton = Button(context)
+            mainActionButton.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, buttonWeight)
+            secondaryButton.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, buttonWeight)
+
 
             applyButtonStyling(mainActionButton, context)
             applyButtonStyling(secondaryButton, context)
@@ -202,7 +223,7 @@ object TableHelpers {
         ttpName: String,
         user: User,
         context: Context
-    ) { // TODO: Connect / request share
+    ) {
         mainButton.text = "Connect"
         secondaryButton.text = "Request Share"
         mainButton.setOnClickListener {
@@ -313,11 +334,12 @@ object TableHelpers {
         button: Button,
         context: Context
     ) {
+        button.gravity = Gravity.CENTER
         button.setTextColor(context.getColor(R.color.white))
         button.background.setTint(context.resources.getColor(R.color.colorPrimary))
         button.isAllCaps = false
-        button.textSize = 12f
-        button.setPadding(14, 14, 14, 14)
+        button.textSize = 8f
+        button.setPadding(8, 8, 8, 8)
         button.letterSpacing = 0f
     }
 }

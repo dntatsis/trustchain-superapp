@@ -13,7 +13,8 @@ import nl.tudelft.trustchain.offlineeuro.entity.WalletEntry
 class WalletManager(
     context: Context?,
     private val group: BilinearGroup,
-    driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "wallet.db"),
+    walletName: String,
+    driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "$walletName.db"),
 ) : OfflineEuroManager(group, driver) {
     private val queries: WalletQueries = database.walletQueries
     private val walletEntryMapper = {

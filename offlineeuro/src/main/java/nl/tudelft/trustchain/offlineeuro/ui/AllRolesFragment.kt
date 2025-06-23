@@ -35,8 +35,10 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     private lateinit var ttpFragmentList: List<BaseTTPFragment>
     private lateinit var bankFragment: BankHomeFragment
     private lateinit var userFragment: List<UserHomeFragment>
-    private var inc = 0 // counts visits to user fragments
-
+    private var inc_user = 0 // counts visits to user fragments
+    private var inc_ttp = 0 // counts visits to ttp fragments
+    private val usersNum = 2
+    private var isInitialized = false
     private var currentChildFragment: OfflineEuroBaseFragment? = null
     override fun onViewCreated(
         view: View,
@@ -51,9 +53,15 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         val depositedEuroManager = DepositedEuroManager(context, group)
 
         // create N TTPs, first one being an registration TTP
-        val n = 2
-        ttpList = MutableList(n) { index ->
+        fun getKDistinctValues(k: Int, n: Int): List<Int> {
+            require(k <= n) { "k must be less than or equal to n for distinct values." }
+            return (1..n).shuffled().take(k)
+        }
+        val inactive = getKDistinctValues(User.maximum_shares - User.minimum_shares,User.maximum_shares)
+        Log.i("adr inactive",inactive.toString())
+        ttpList = MutableList(User.maximum_shares) { index ->
             val ttpName = if (index == 0) "TTP" else "TTP $index"
+            val active = index !in inactive
             if (index == 0)
                 REGTTP(
                     name = ttpName,
@@ -68,17 +76,18 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
                     group = group,
                     communicationProtocol = iPV8CommunicationProtocol,
                     context = context,
-                    onDataChangeCallback = null
+                    onDataChangeCallback = null,
+                    active = active
                 )
         }
         // create the ttp fragments as well
-        ttpFragmentList = List(n) { index ->
+        ttpFragmentList = List(User.maximum_shares) { index ->
             if (index == 0)
                 REGTTPHomeFragment()
             else
                 TTPHomeFragment(count = index - 1) // subtract one because regttp doesnt count
         }
-        for (i in 0 until n){ // set callbacks and add to address book
+        for (i in 0 until User.maximum_shares){ // set callbacks and add to address book
             if (i == 0){
                 ttpList[i].onDataChangeCallback = onREGTTPDataChangeCallback(ttpList[i] as REGTTP, ttpFragmentList[i] as REGTTPHomeFragment)
                 iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[i].name, Role.REG_TTP, ttpList[i].publicKey, null))
@@ -114,10 +123,9 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         userList = mutableListOf<User>()
 
         // create each user
-
         var connectedSuccessfully = true;
         lifecycleScope.launch {
-            repeat(n) { index ->
+            repeat(usersNum) { index ->
                 try {
                     val user = User(
                         "TestUser$index",
@@ -144,13 +152,14 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         }
 
         // create user fragments
-        userFragment = List(n) { index ->
+        userFragment = List(usersNum) { index ->
             UserHomeFragment(count = index)
         }
 
         // set up individual group, wallet, crs, datachangecallback for users
 
-        for (i in 0 until n) {
+        for (i in 0 until usersNum) {
+            Log.i("adr wallet debug"," ${userList[i].walletManager}")
 
             userList[i].wallet =
                 Wallet(userList[i].privateKey, userList[i].publicKey, userList[i].walletManager!!)
@@ -159,7 +168,6 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
             iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(userList[i].name, Role.User, userList[i].publicKey, null))
 
             userList[i].onDataChangeCallback = onUserDataChangeCallBack(userList[i],userFragment[i])
-
         }
 
         if (!connectedSuccessfully) return
@@ -170,7 +178,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         ParticipantHolder.bank = bank
         ParticipantHolder.user = userList
 
-        for (i in 0 until n) { // register all users
+        for (i in 0 until usersNum) { // register all users
             ttpList[0].registerUser(userList[i].name, userList[i].publicKey)
 
         }
@@ -182,7 +190,6 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         //        Address(ttp.name, Role.TTP, ttp.publicKey, null)
         //    )
         //}
-        Log.i("adr_reg",iPV8CommunicationProtocol.addressBookManager.getAllAddresses().joinToString("\n"))
 
         prepareButtons(view)
         setTTPAsChild(view)
@@ -194,7 +201,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         val bankButton = view.findViewById<Button>(R.id.all_roles_set_bank)
         val userButton = view.findViewById<Button>(R.id.all_roles_set_user)
         ttpButton.setOnClickListener {
-            ttpButton.isEnabled = false
+            ttpButton.isEnabled = true
             bankButton.isEnabled = true
             userButton.isEnabled = true
             setTTPAsChild(view)
@@ -210,19 +217,20 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         userButton.setOnClickListener {
             ttpButton.isEnabled = true
             bankButton.isEnabled = true
-            userButton.isEnabled = false
+            userButton.isEnabled = true
             setUserAsChild()
         }
     }
 
     private fun setTTPAsChild(view: View) {
-        iPV8CommunicationProtocol.participant = ttpList[0]
+        iPV8CommunicationProtocol.participant = ttpList[inc_ttp % User.maximum_shares]
 
-        currentChildFragment = ttpFragmentList[0]
+        currentChildFragment = ttpFragmentList[inc_ttp % User.maximum_shares]
         childFragmentManager.beginTransaction()
-            .replace(R.id.parent_fragment_container, ttpFragmentList[0])
+            .replace(R.id.parent_fragment_container, ttpFragmentList[inc_ttp % User.maximum_shares])
             .commit()
         Toast.makeText(context, "Switched to TTP", Toast.LENGTH_SHORT).show()
+        inc_ttp += 1
     }
 
     private fun setBankAsChild() {
@@ -235,13 +243,13 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
     }
 
     private fun setUserAsChild() {
-        iPV8CommunicationProtocol.participant = userList[inc % 2]
-        currentChildFragment = userFragment[inc % 2]
+        iPV8CommunicationProtocol.participant = userList[inc_user % usersNum]
+        currentChildFragment = userFragment[inc_user % usersNum]
         childFragmentManager.beginTransaction()
-            .replace(R.id.parent_fragment_container, userFragment[inc % 2])
+            .replace(R.id.parent_fragment_container, userFragment[inc_user % usersNum])
             .commit()
         Toast.makeText(context, "Switched to User", Toast.LENGTH_SHORT).show()
-        inc += 1
+        inc_user += 1
     }
 
     private fun onBankDataChangeCallBack(
