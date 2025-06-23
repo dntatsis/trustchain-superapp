@@ -283,7 +283,7 @@ class SystemTest {
     fun createTestUser(): User {
         // Start with a random group
         val addressBookManager = createAddressManager(group)
-        val walletManager = WalletManager(null, group, createDriver())
+        val walletManager = WalletManager(null, group, "wallet_test", createDriver())
 
         // Add the community for later access
         val userName = "User${userList.size}"

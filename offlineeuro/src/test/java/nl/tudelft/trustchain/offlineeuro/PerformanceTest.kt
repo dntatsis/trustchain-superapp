@@ -183,7 +183,7 @@ class PerformanceTest {
 
     fun createTestUser(): User {
         val addressBookManager = createAddressManager(group)
-        val walletManager = WalletManager(null, group, createDriver())
+        val walletManager = WalletManager(null, group, "wallet_test", createDriver())
 
         // Add the community for later access
         val userName = "User${userList.size}"
