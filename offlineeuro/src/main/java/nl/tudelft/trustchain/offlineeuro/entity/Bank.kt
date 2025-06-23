@@ -26,8 +26,8 @@ class Bank(
 
     init {
         communicationProtocol.participant = this
-        if (runSetup) generateKeyPair()
         this.group = group
+        if (runSetup) generateKeyPair()
     }
 
     fun getBlindSignatureRandomness(userPublicKey: Element): Element {
@@ -118,11 +118,12 @@ class Bank(
                 lateinit var dsResult: String
 
                 if(!isAllRoles){
-                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
+                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof)
 
                 }
                 else{
-                    dsResult = ParticipantHolder.regttp!!.getUserFromProofs(euroProof, depositProof)
+                    dsResult = "Check here";
+                    //TODO: add logic
 
                 }
 
