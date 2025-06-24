@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
@@ -43,24 +44,30 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionResult
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.entity.Wallet
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.Mockito.atLeastOnce
+import org.mockito.Mockito.mockStatic
 import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.math.BigInteger
 import java.security.SecureRandom
 
 class MultipleTTPSystemTest {
     // Setup the TTP
     private val group: BilinearGroup = BilinearGroup(PairingTypes.A)
+//    private val otherTTPGroup: BilinearGroup = BilinearGroup(PairingTypes.A)
     private lateinit var ttp: TTP
     private lateinit var ttpList: List<TTP>
     private lateinit var ttpCommunity: OfflineEuroCommunity
@@ -70,6 +77,21 @@ class MultipleTTPSystemTest {
     private lateinit var bank: Bank
     private lateinit var bankCommunity: OfflineEuroCommunity
     private var i = 0
+
+    lateinit var logMock: MockedStatic<Log>
+
+    @Before
+    fun mockAndroidLog() {
+        logMock = mockStatic(Log::class.java)
+
+        logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+    }
+
+    @After
+    fun closeAndroidLogMock() {
+        logMock.close()
+    }
 
 //    @Test
 //    fun connectToTTPAndRequestShareTest() {
@@ -167,24 +189,35 @@ class MultipleTTPSystemTest {
         ttpCommunityList.keys.forEach { addTTP ->
             val firstProofCaptor = argumentCaptor<ByteArray>()
             val secondProofCaptor = argumentCaptor<ByteArray>()
-            `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(),
-                argThat{peerPublicKey -> peerPublicKey.contentEquals((addTTP.communicationProtocol as IPV8CommunicationProtocol).addressBookManager.getAddressByName(addTTP.name).peerPublicKey!!)})).then {
+            val ttpPublicKey = (addTTP.communicationProtocol as IPV8CommunicationProtocol)
+                .addressBookManager.getAddressByName(addTTP.name).peerPublicKey!!
+            whenever(bankCommunity.sendFraudControlRequest(
+                firstProofCaptor.capture(),
+                secondProofCaptor.capture(),
+                argThat { peerPublicKey ->
+                    peerPublicKey.contentEquals(ttpPublicKey)
+                }
+            )).thenAnswer{
+//            `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(),
+//                argThat{peerPublicKey -> peerPublicKey.contentEquals((addTTP.communicationProtocol as IPV8CommunicationProtocol).addressBookManager.getAddressByName(addTTP.name).peerPublicKey!!)})).then {
                 val firstProofBytes = firstProofCaptor.lastValue
                 val secondProofBytes = secondProofCaptor.lastValue
 
                 val peerMock = Mockito.mock(Peer::class.java)
                 val fraudControlRequestMessage = FraudControlRequestMessage(firstProofBytes, secondProofBytes, peerMock)
                 val fraudControlResultCaptor = argumentCaptor<ByteArray>()
-                `when`(
-                    ttpCommunityList[addTTP]!!.sendFraudControlReply(
+                val addTTPCommunity = ttpCommunityList[addTTP]!!
+                whenever(
+                    addTTPCommunity.sendFraudControlReply(
                         fraudControlResultCaptor.capture(),
                         any()
                     )
-                ).then {
+                ).thenAnswer {
                     val replyMessage = FraudControlReplyMessage(fraudControlResultCaptor.lastValue)
                     bankCommunity.messageList.add(replyMessage)
                 }
                 ttpCommunityList[addTTP]!!.messageList.add(fraudControlRequestMessage)
+                print("sdc")
             }
         }
 
@@ -369,6 +402,8 @@ class MultipleTTPSystemTest {
 
         Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
         val user = User(userName, group, null, walletManager, communicationProtocol, runSetup = false, Identification_Value = "my secret share")
+        user.generateKeyPair()
+        user.wallet = Wallet(user.privateKey, user.publicKey, walletManager)
         user.crs = crs
         user.group = group
         userList[user] = community
@@ -419,10 +454,11 @@ class MultipleTTPSystemTest {
 
         Mockito.`when`(bankCommunity.messageList).thenReturn(communicationProtocol.messageList)
         bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, runSetup = false)
+        bank.generateKeyPair()
         bank.crs = crs
-        addressBookManager.insertAddress(Address(ttp.name, Role.REG_TTP, ttp.publicKey, "SomeTTPPubKey".toByteArray()))
+        addressBookManager.insertAddress(Address(ttp.name, Role.REG_TTP, ttp.publicKey, ttp.name.toByteArray()))
         ttpList.forEach{addTTP ->
-            addressBookManager.insertAddress(Address(addTTP.name, Role.TTP, addTTP.publicKey, ("SomeTTPPubKey" + addTTP.name).toByteArray()))
+            addressBookManager.insertAddress(Address(addTTP.name, Role.TTP, addTTP.publicKey, addTTP.name.toByteArray()))
             addTTP.registerUser(bank.name, bank.publicKey)
         }
         ttp.registerUser(bank.name, bank.publicKey)
