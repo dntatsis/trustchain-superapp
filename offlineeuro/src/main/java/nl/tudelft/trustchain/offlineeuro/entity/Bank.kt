@@ -4,11 +4,14 @@ import android.content.Context
 import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.ui.ParticipantHolder
 import java.math.BigInteger
+import java.security.SecureRandom
 import kotlin.math.min
 
 class Bank(
@@ -115,24 +118,35 @@ class Bank(
             val euroProof = euro.proofs[maxFirstDifferenceIndex]
             val depositProof = doubleSpendEuro.proofs[maxFirstDifferenceIndex]
             try {
-                lateinit var dsResult: String
+                var dsResult: MutableMap<String, FraudControlReplyMessage> = mutableMapOf()
 
-                if(!isAllRoles){
-                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof)
-
+                if (!isAllRoles) {
+                    dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof) as MutableMap<String, FraudControlReplyMessage>
+                } else {
+                    for (ttp in ParticipantHolder.ttp!!) {
+                        val result = ttp.getUserFromProofs(euroProof, depositProof)!!
+                        dsResult[ttp.name] = FraudControlReplyMessage(result)
+                    }
                 }
-                else{
-                    dsResult = "Check here";
-                    //TODO: add logic
 
-                }
+                val sortedMessages = dsResult.entries.sortedBy { it.key }
 
-                if (dsResult != "") {
+                val partialPart: Map<Int, ByteArray> = sortedMessages.mapIndexed { index, message ->
+                    (index + 1) to message.value.result
+                }.toMap()
+                val scheme = Scheme(SecureRandom(), 3, 2)
+
+                val recovered = scheme.join(partialPart)
+                val recoveredString = String(recovered, Charsets.UTF_8)
+
+                Log.i("adr fraud control", "Recovered string: $recoveredString")
+
+                if (dsResult.isNotEmpty()) {
                     depositedEuroLogger.add(Pair(euro.serialNumber, true))
                     // <Increase user balance here and penalize the fraudulent User>
                     depositedEuroManager.insertDigitalEuro(euro)
-                    // onDataChangeCallback?.invoke(dsResult)
-                    return dsResult
+                    // onDataChangeCallback?.invoke(dsResult.toString())
+                    return "Double spending detected: $dsResult"
                 }
             } catch (e: Exception) {
                 depositedEuroLogger.add(Pair(euro.serialNumber, true))

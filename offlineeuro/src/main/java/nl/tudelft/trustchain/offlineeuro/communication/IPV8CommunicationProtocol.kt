@@ -171,7 +171,7 @@ class IPV8CommunicationProtocol(
     override fun requestFraudControl(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof,
-    ): String {
+    ): Map<String, FraudControlReplyMessage> {
         val ttpAddress =addressBookManager.getAllAddresses().filter { address ->  address.type == Role.REG_TTP || address.type == Role.TTP}
         val messages = mutableMapOf<Address, FraudControlReplyMessage>()
         for (ttpVal in ttpAddress) {
@@ -184,19 +184,11 @@ class IPV8CommunicationProtocol(
             messages[ttpVal] = message
         }
 
-        val sortedMessages = messages
-            .toList()
-            .sortedBy { it.first.name }
-            .map { it.second.result }
-
-        val partialPart = sortedMessages.mapIndexed { index, message ->
-            (index + 1) to message
-        }.toMap()
-        val scheme = Scheme(SecureRandom(), 3, 2)
-
-        val recovered = scheme.join(partialPart)
-        val recoveredString = String(recovered, Charsets.UTF_8)
-        return recoveredString
+        val result = mutableMapOf<String, FraudControlReplyMessage>()
+        for ((address, message) in messages) {
+            result[address.name] = message
+        }
+        return result
     }
 
     fun scopePeers() {
