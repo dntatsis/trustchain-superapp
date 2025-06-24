@@ -18,6 +18,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
+import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
@@ -155,8 +156,17 @@ class SystemTest {
         // Double Spend
         spendEuro(user, user3, doubleSpend = true)
 
+        val firstUserCaptor = argumentCaptor<ByteArray>()
+        val secondUserCaptor = argumentCaptor<ByteArray>()
+        val userPeer = Mockito.mock(Peer::class.java)
+        `when`(bankCommunity.sendFraudControlRequest(firstUserCaptor.capture(), secondUserCaptor.capture(), any())).then {
+            ttpCommunity.messageList.add(FraudControlRequestMessage(firstUserCaptor.lastValue, secondUserCaptor.lastValue, userPeer))
+            val fraudControlReply = FraudControlReplyMessage("test123".toByteArray())
+            bankCommunity.messageList.add(fraudControlReply)
+        }
+
         // Deposit double spend Euro
-        spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
+        spendEuro(user3, bank, "test123")
     }
 
     @Test
@@ -325,11 +335,6 @@ class SystemTest {
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, bankCommunity)
 
         `when`(bankCommunity.messageList).thenReturn(communicationProtocol.messageList)
-        `when`(bankCommunity.sendFraudControlRequest(any(), any(), any())).then { invocation ->
-            val fraudControlReply = FraudControlReplyMessage("test123".toByteArray())
-            bankCommunity.messageList.add(fraudControlReply)
-            null
-        }
 
         bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, runSetup = false)
         bank.generateKeyPair()
