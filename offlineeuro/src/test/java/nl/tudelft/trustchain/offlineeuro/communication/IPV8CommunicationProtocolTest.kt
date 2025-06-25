@@ -20,6 +20,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizat
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
@@ -40,9 +41,12 @@ import org.junit.runner.RunWith
 import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.Mockito.mockStatic
+import org.mockito.Mockito.nullable
 import org.mockito.Mockito.`when`
 import org.mockito.junit.MockitoJUnitRunner
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import java.math.BigInteger
@@ -90,11 +94,11 @@ class IPV8CommunicationProtocolTest {
         `when`(community.messageList).thenReturn(iPV8CommunicationProtocol.messageList)
         val ttpAddressMessage = AddressMessage(ttpAddress.name, ttpAddress.type, ttpAddress.publicKey.toBytes(), ttpAddress.peerPublicKey!!)
         `when`(community.getGroupDescriptionAndCRS()).then {
-            val message = BilinearGroupCRSReplyMessage(groupDescription.toGroupElementBytes(), ttpCRS.first.toCRSBytes(), ttpAddressMessage)
+            val message = BilinearGroupCRSReplyMessage(groupDescription.toGroupElementBytes(), ttpCRS.first.toCRSBytes(), CRSTransformer.crsValues(ttpCRS.second), ttpAddressMessage)
             community.messageList.add(message)
         }
 
-        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any(), any())).then { }
+        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any(), any(), any())).then { }
 
         `when`(community.registerAtTTP(any(), any(), any(), any())).then { }
 
@@ -166,6 +170,7 @@ class IPV8CommunicationProtocolTest {
 
         `when`(ttp.group).thenReturn(groupDescription)
         `when`(ttp.crs).thenReturn(ttpCRS.first)
+//        `when`(ttp.crsMap).thenReturn(ttpCRS.second)
         `when`(ttp.publicKey).thenReturn(ttpPK)
 
         val expectedGroupElements = groupDescription.toGroupElementBytes()
@@ -173,7 +178,7 @@ class IPV8CommunicationProtocolTest {
 
         community.messageList.add(message)
         verify(community, times(1))
-            .sendGroupDescriptionAndCRS(expectedGroupElements, expectedCRSBytes, ttpAddress.publicKey.toBytes(), receivingPeer)
+            .sendGroupDescriptionAndCRS(eq(expectedGroupElements), eq(expectedCRSBytes), anyOrNull(), eq(ttpAddress.publicKey.toBytes()), eq(receivingPeer))
     }
 
     @Test

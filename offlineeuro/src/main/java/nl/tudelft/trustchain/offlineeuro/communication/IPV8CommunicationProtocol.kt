@@ -264,7 +264,7 @@ class IPV8CommunicationProtocol(
         } else {
             val groupBytes = participant.group.toGroupElementBytes()
             val crsBytes = participant.crs.toCRSBytes()
-            val secondCrsBytes = (participant as TTP).getSecondCrs()
+            val secondCrsBytes = (participant as REGTTP).getSecondCrs()
             val peer = message.requestingPeer
             Log.i("adr","received a Group request")
             community.sendGroupDescriptionAndCRS(
