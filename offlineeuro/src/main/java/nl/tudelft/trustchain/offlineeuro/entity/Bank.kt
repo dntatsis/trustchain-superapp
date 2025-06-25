@@ -152,7 +152,7 @@ class Bank(
                     // <Increase user balance here and penalize the fraudulent User>
                     depositedEuroManager.insertDigitalEuro(euro)
                     // onDataChangeCallback?.invoke(dsResult.toString())
-                    return "Double spending detected: $dsResult"
+                    return "Double spending detected: User secret: $recoveredString"
                 }
             } catch (e: Exception) {
                 depositedEuroLogger.add(Pair(euro.serialNumber, true))

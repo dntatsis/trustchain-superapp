@@ -5,6 +5,7 @@ import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPConnectionPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
@@ -42,7 +43,7 @@ open class TTP(
         this.crsMap = generatedCRS.second
         generateKeyPair()
     }
-    lateinit var adrBook: AddressBookManager
+//    lateinit var adrBook: AddressBookManager
 
     fun getSharefromTTP(name: String): ByteArray? {
         communicationProtocol.participant = this
@@ -102,7 +103,7 @@ open class TTP(
         val publicKey =
             grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
 
-        val user = adrBook.getAllAddresses()
+        val user = (communicationProtocol as IPV8CommunicationProtocol).addressBookManager.getAllAddresses()
             .firstOrNull { it.publicKey == publicKey }
 
         val userName= user?.name

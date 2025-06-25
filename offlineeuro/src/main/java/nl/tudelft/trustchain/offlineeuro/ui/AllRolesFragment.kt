@@ -94,12 +94,10 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
             if (i == 0){
                 ttpList[i].onDataChangeCallback = onREGTTPDataChangeCallback(ttpList[i] as REGTTP, ttpFragmentList[i] as REGTTPHomeFragment)
                 iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[i].name, Role.REG_TTP, ttpList[i].publicKey, null))
-                ttpList[i].adrBook = iPV8CommunicationProtocol.addressBookManager
             }
             else {
                 ttpList[i].onDataChangeCallback = onTTPDataChangeCallback(ttpList[i], ttpFragmentList[i] as TTPHomeFragment)
                 iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[i].name, Role.TTP, ttpList[i].publicKey, null))
-                ttpList[i].adrBook = iPV8CommunicationProtocol.addressBookManager
                 ttpList[i].crs = ttpList[0].crs
                 ttpList[i].crsMap = ttpList[0].crsMap
             }

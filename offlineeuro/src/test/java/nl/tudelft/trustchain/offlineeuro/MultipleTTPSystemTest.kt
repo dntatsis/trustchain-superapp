@@ -93,42 +93,6 @@ class MultipleTTPSystemTest {
         logMock.close()
     }
 
-//    @Test
-//    fun connectToTTPAndRequestShareTest() {
-//        createTTP()
-//        val user = createTestUser()
-//
-//        //Register all participants in user list
-//        addMessageToList(user, AddressMessage(ttp.name, Role.REG_TTP, ttp.publicKey.toBytes(), ttp.name.toByteArray()))
-//        ttpList.forEach {addTTP ->  addMessageToList(user, AddressMessage(addTTP.name, Role.TTP, addTTP.publicKey.toBytes(), addTTP.name.toByteArray()))}
-//        ttpCommunityList.values.forEach{community -> community.messageList.add(AddressMessage(user.name, Role.User, user.publicKey.toBytes(), user.name.toByteArray()))}
-//
-//        connectUserToTTP(user, ttp)
-//        ttpList.forEach { addTTP -> connectUserToTTP(user, addTTP) }
-//
-//
-//        val share = requestShare(user, ttp)
-//        val share2 = requestShare(user, ttpList.get(0))
-//        val share3 = requestShare(user, ttpList.get(1))
-//
-//        val scheme = Scheme(SecureRandom(), 3, 2)
-//        val partialPart = mapOf(
-//            1 to share,
-//            2 to share2
-//        )
-//        val recovered = scheme.join(partialPart)
-//        val recoveredString = String(recovered, Charsets.UTF_8)
-//        Assert.assertEquals(recoveredString, "my secret share")
-//
-//        val partialPart2 = mapOf(
-//            2 to share2,
-//            3 to share3
-//        )
-//        val recovered2 = scheme.join(partialPart2)
-//        val recoveredString2 = String(recovered2, Charsets.UTF_8)
-//        Assert.assertEquals(recoveredString2, "my secret share")
-//    }
-
     @Test
     fun connectToTTPAndRequestShareByBankTest() {
         createTTP()
@@ -222,30 +186,7 @@ class MultipleTTPSystemTest {
         }
 
         // Deposit double spend Euro
-        spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
-
-
-
-//        val share = requestShare(user, ttp)
-//        val share2 = requestShare(user, ttpList.get(0))
-//        val share3 = requestShare(user, ttpList.get(1))
-//
-//        val scheme = Scheme(SecureRandom(), 3, 2)
-//        val partialPart = mapOf(
-//            1 to share,
-//            2 to share2
-//        )
-//        val recovered = scheme.join(partialPart)
-//        val recoveredString = String(recovered, Charsets.UTF_8)
-//        Assert.assertEquals(recoveredString, "my secret share")
-//
-//        val partialPart2 = mapOf(
-//            2 to share2,
-//            3 to share3
-//        )
-//        val recovered2 = scheme.join(partialPart2)
-//        val recoveredString2 = String(recovered2, Charsets.UTF_8)
-//        Assert.assertEquals(recoveredString2, "my secret share")
+        spendEuro(user3, bank, "Double spending detected: User secret: my secret share")
     }
 
     private fun withdrawDigitalEuro(
@@ -441,6 +382,8 @@ class MultipleTTPSystemTest {
                 RegisteredUserManager(null, group, createDriver()),
                 ConnectedUserManager(null, createDriver()))
             ttpCommunityList[addTTP] = additionalTtpCommunity
+            addTTP.crs = ttp.crs
+            addTTP.crsMap = ttp.crsMap
             addTTP
         }
     }
