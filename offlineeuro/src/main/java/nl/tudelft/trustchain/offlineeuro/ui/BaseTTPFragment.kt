@@ -21,7 +21,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 
 abstract class BaseTTPFragment(@LayoutRes layoutId: Int) : OfflineEuroBaseFragment(layoutId) {
     protected lateinit var community: OfflineEuroCommunity
-    protected lateinit var iPV8CommunicationProtocol: IPV8CommunicationProtocol
+    lateinit var iPV8CommunicationProtocol: IPV8CommunicationProtocol
     protected lateinit var participant: TTP //
 
     fun setWelcomeText(view: View, name: String) {

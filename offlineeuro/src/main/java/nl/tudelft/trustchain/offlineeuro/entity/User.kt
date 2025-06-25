@@ -103,7 +103,6 @@ class User(
                 val publicKeyRecv = groupRecv.gElementFromBytes(sentPK)
 
                 val transactionDetailsRecv = transactionDetailsToB.toTransactionDetails(groupRecv)
-
                 val transactionResult = combinedUserAndBank[index]!!.onReceivedTransaction(transactionDetailsRecv, ParticipantHolder.bank!!.publicKey, publicKeyRecv)
 
                 result = transactionResult
@@ -124,7 +123,6 @@ class User(
             randomizationElements =  communicationProtocol.requestTransactionRandomness(nameReceiver, group) // message exchange 1
         }
         else{
-            Log.i("adr_recover","asking to send a euro")
 
             var sent_pk = publicKey.toBytes()
 
@@ -145,7 +143,11 @@ class User(
         Log.i("adr wallet","about to double spend")
 
 
-        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs) ?: throw Exception("No euro to send")
+        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
+        if (transactionDetails == null) {
+            throw Exception("No euro to send")
+        }
+
         lateinit var result:String
         if (!isAllRoles) {
             result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails) // message exchange 2

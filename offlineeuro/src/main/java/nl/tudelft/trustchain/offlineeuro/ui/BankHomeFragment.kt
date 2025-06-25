@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.Toast
@@ -19,7 +20,6 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
     private lateinit var bank: Bank
     private lateinit var iPV8CommunicationProtocol: IPV8CommunicationProtocol
     private lateinit var community: OfflineEuroCommunity
-
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?
@@ -33,7 +33,6 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
             iPV8CommunicationProtocol.scopePeers()
         }
         getIdentityButton.visibility = View.GONE
-
         if (ParticipantHolder.bank != null) {
             bank = ParticipantHolder.bank!!
             iPV8CommunicationProtocol = bank.communicationProtocol as IPV8CommunicationProtocol

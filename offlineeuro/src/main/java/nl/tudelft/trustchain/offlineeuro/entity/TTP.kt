@@ -11,8 +11,13 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
+import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.ConnectedUserManager
+import nl.tudelft.trustchain.offlineeuro.ui.BankHomeFragment
+import nl.tudelft.trustchain.offlineeuro.ui.BaseTTPFragment
+import nl.tudelft.trustchain.offlineeuro.ui.OfflineEuroBaseFragment
+import nl.tudelft.trustchain.offlineeuro.ui.TTPHomeFragment
 
 
 open class TTP(
@@ -28,7 +33,7 @@ open class TTP(
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
         var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
         lateinit var regCrs: CRS
-        val crsMap: Map<Element, Element>
+        var crsMap: Map<Element, Element>
         init {
         communicationProtocol.participant = this
         this.group = group
@@ -37,6 +42,7 @@ open class TTP(
         this.crsMap = generatedCRS.second
         generateKeyPair()
     }
+    lateinit var adrBook: AddressBookManager
 
     fun getSharefromTTP(name: String): ByteArray? {
         communicationProtocol.participant = this
@@ -91,27 +97,29 @@ open class TTP(
         TODO("Not yet implemented")
     }
 
-    fun getUserFromProof(grothSahaiProof: GrothSahaiProof): RegisteredUser? {
+    fun getUserFromProof(grothSahaiProof: GrothSahaiProof): String? { // return name of user
         val crsExponent = crsMap[crs.u]
-        val test = group.g.powZn(crsExponent)
         val publicKey =
             grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
 
-        return registeredUserManager.getRegisteredUserByPublicKey(publicKey)
+        val user = adrBook.getAllAddresses()
+            .firstOrNull { it.publicKey == publicKey }
+
+        val userName= user?.name
+
+        return userName
+
     }
 
     fun getUserFromProofs(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof
     ): ByteArray? {
-        val firstPK = getUserFromProof(firstProof)
-        val secondPK = getUserFromProof(secondProof)
+        val firstUser = getUserFromProof(firstProof)
+        val secondUser = getUserFromProof(secondProof)
+        if (firstUser != null && firstUser == secondUser) {
 
-        if (firstPK != null && firstPK == secondPK) {
-//            onDataChangeCallback?.invoke("Found proof that  ${firstPK.name} committed fraud!")
-//            "Double spending detected. Double spender is ${firstPK.name} with PK: ${firstPK.publicKey}"
-//            // TODO: send message to other TTPs in order to deanonymize
-            return getSharefromTTP(firstPK.name)
+            return getSharefromTTP(firstUser)
         } else {
 //            onDataChangeCallback?.invoke("Invalid fraud request received!")
 //            "No double spending detected"

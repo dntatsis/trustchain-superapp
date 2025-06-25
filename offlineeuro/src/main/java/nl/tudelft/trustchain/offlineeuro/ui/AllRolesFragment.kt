@@ -80,6 +80,9 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
                     active = active
                 )
         }
+        ParticipantHolder.regttp = ttpList[0] as REGTTP
+        ParticipantHolder.ttp = ttpList.drop(1).toMutableList()
+
         // create the ttp fragments as well
         ttpFragmentList = List(User.maximum_shares) { index ->
             if (index == 0)
@@ -91,12 +94,16 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
             if (i == 0){
                 ttpList[i].onDataChangeCallback = onREGTTPDataChangeCallback(ttpList[i] as REGTTP, ttpFragmentList[i] as REGTTPHomeFragment)
                 iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[i].name, Role.REG_TTP, ttpList[i].publicKey, null))
+                ttpList[i].adrBook = iPV8CommunicationProtocol.addressBookManager
             }
             else {
                 ttpList[i].onDataChangeCallback = onTTPDataChangeCallback(ttpList[i], ttpFragmentList[i] as TTPHomeFragment)
                 iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttpList[i].name, Role.TTP, ttpList[i].publicKey, null))
-
+                ttpList[i].adrBook = iPV8CommunicationProtocol.addressBookManager
+                ttpList[i].crs = ttpList[0].crs
+                ttpList[i].crsMap = ttpList[0].crsMap
             }
+
         }
 
         // Create bank, bank fragment
@@ -105,9 +112,9 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         bank.group = ttpList[0].group
         bank.crs = ttpList[0].crs
         bank.generateKeyPair()
-
+        ParticipantHolder.bank = bank
+        bank.isAllRoles = true
         bankFragment = BankHomeFragment()
-
         bank.onDataChangeCallback = onBankDataChangeCallBack(bank,bankFragment)
         iPV8CommunicationProtocol.participant = ttpList[0] // iPV8CommunicationProtocol.participant represents the active entity
 
@@ -150,6 +157,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
             }
 
         }
+        ParticipantHolder.user = userList
 
         // create user fragments
         userFragment = List(usersNum) { index ->
@@ -159,7 +167,6 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         // set up individual group, wallet, crs, datachangecallback for users
 
         for (i in 0 until usersNum) {
-            Log.i("adr wallet debug"," ${userList[i].walletManager}")
 
             userList[i].wallet =
                 Wallet(userList[i].privateKey, userList[i].publicKey, userList[i].walletManager!!)
@@ -172,11 +179,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
 
         if (!connectedSuccessfully) return
 
-        ParticipantHolder.regttp = ttpList[0] as REGTTP
-        ParticipantHolder.ttp = ttpList.drop(1).toMutableList()
 
-        ParticipantHolder.bank = bank
-        ParticipantHolder.user = userList
 
         for (i in 0 until usersNum) { // register all users
             ttpList[0].registerUser(userList[i].name, userList[i].publicKey)
@@ -226,6 +229,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         iPV8CommunicationProtocol.participant = ttpList[inc_ttp % User.maximum_shares]
 
         currentChildFragment = ttpFragmentList[inc_ttp % User.maximum_shares]
+
         childFragmentManager.beginTransaction()
             .replace(R.id.parent_fragment_container, ttpFragmentList[inc_ttp % User.maximum_shares])
             .commit()

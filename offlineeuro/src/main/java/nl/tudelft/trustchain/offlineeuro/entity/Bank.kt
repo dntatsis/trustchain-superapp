@@ -123,18 +123,24 @@ class Bank(
                 if (!isAllRoles) {
                     dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof) as MutableMap<String, FraudControlReplyMessage>
                 } else {
+                    val regttpresult = ParticipantHolder.regttp!!.getUserFromProofs(euroProof, depositProof)!!
+                   dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage(regttpresult)
                     for (ttp in ParticipantHolder.ttp!!) {
-                        val result = ttp.getUserFromProofs(euroProof, depositProof)!!
-                        dsResult[ttp.name] = FraudControlReplyMessage(result)
+                        val result = ttp.getUserFromProofs(euroProof, depositProof)
+                        if (result == null){ // in case of null reply from TTP
+                            dsResult[ttp.name] = FraudControlReplyMessage(ByteArray(0))
+                        }
+                        else{
+                            dsResult[ttp.name] = FraudControlReplyMessage(result)
+                        }
                     }
                 }
 
                 val sortedMessages = dsResult.entries.sortedBy { it.key }
-
                 val partialPart: Map<Int, ByteArray> = sortedMessages.mapIndexed { index, message ->
                     (index + 1) to message.value.result
                 }.toMap()
-                val scheme = Scheme(SecureRandom(), 3, 2)
+                val scheme = Scheme(SecureRandom(), User.maximum_shares, User.minimum_shares)
 
                 val recovered = scheme.join(partialPart)
                 val recoveredString = String(recovered, Charsets.UTF_8)

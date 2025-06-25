@@ -18,9 +18,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.entity.misc.randomNameGenerator
 
-class TTPHomeFragment(val count: Int) : BaseTTPFragment(R.layout.fragment_ttp_home) {
+class TTPHomeFragment(val count: Int = -1) : BaseTTPFragment(R.layout.fragment_ttp_home) {
     private lateinit var ttp: TTP
-
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?
@@ -33,6 +32,7 @@ class TTPHomeFragment(val count: Int) : BaseTTPFragment(R.layout.fragment_ttp_ho
             ttp.isAllRoles = true
         } else {
             activity?.title = "TTP"
+
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
