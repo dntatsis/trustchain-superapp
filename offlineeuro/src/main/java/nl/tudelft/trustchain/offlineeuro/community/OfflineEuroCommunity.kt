@@ -143,13 +143,14 @@ class OfflineEuroCommunity(
     fun sendGroupDescriptionAndCRS(
         groupBytes: BilinearGroupElementsBytes,
         crsBytes: CRSBytes,
+        secondCrsBytes: CRSBytes,
         ttpPublicKeyBytes: ByteArray,
         requestingPeer: Peer
     ) {
         val groupAndCrsPacket =
             serializePacket(
                 MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY,
-                BilinearGroupCRSPayload(groupBytes, crsBytes, ttpPublicKeyBytes)
+                BilinearGroupCRSPayload(groupBytes, crsBytes, secondCrsBytes, ttpPublicKeyBytes)
             )
 
         send(requestingPeer, groupAndCrsPacket)
@@ -165,11 +166,11 @@ class OfflineEuroCommunity(
         peer: Peer
     ) {
         val groupElements = payload.bilinearGroupElements
-        val crs = payload.crs
-
+        val crsFirst = payload.crsFirst
+        val crsSecond = payload.crsSecond
         val ttpAddressMessage = AddressMessage("TTP", Role.REG_TTP, payload.ttpPublicKey, peer.publicKey.keyToBin()) // TODO: Get rid of hardcoded "TTP"s!
 
-        val message = BilinearGroupCRSReplyMessage(groupElements, crs, ttpAddressMessage)
+        val message = BilinearGroupCRSReplyMessage(groupElements, crsFirst,crsSecond, ttpAddressMessage)
         addMessage(message)
     }
 

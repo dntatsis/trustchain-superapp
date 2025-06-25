@@ -18,6 +18,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
+import nl.tudelft.trustchain.offlineeuro.entity.TTP
 
 class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
     private lateinit var regttp: REGTTP
@@ -48,6 +49,8 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
             )
 
         }
+        Log.d("adr_GROUPCHECK","g:${regttp.group.g}, \nh:${regttp.group.h}, \ngt:${regttp.group.gt} \n${regttp.crs} \n" +
+            "${regttp.crsMap}")
         setWelcomeText(view,regttp.name)
         onDataChangeCallback(null)
         val ttpInfo: MutableList<Pair<String, Boolean>> = mutableListOf(regttp.name to true)

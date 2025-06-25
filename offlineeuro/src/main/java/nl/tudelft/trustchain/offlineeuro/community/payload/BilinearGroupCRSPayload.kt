@@ -9,7 +9,8 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 
 class BilinearGroupCRSPayload(
     val bilinearGroupElements: BilinearGroupElementsBytes,
-    val crs: CRSBytes,
+    val crsFirst: CRSBytes,
+    val crsSecond: CRSBytes,
     val ttpPublicKey: ByteArray
 ) : Serializable {
     override fun serialize(): ByteArray {
@@ -18,16 +19,25 @@ class BilinearGroupCRSPayload(
         payload += serializeVarLen(bilinearGroupElements.h)
         payload += serializeVarLen(bilinearGroupElements.gt)
 
-        payload += serializeVarLen(crs.g)
-        payload += serializeVarLen(crs.u)
-        payload += serializeVarLen(crs.gPrime)
-        payload += serializeVarLen(crs.uPrime)
+        payload += serializeVarLen(crsFirst.g)
+        payload += serializeVarLen(crsFirst.u)
+        payload += serializeVarLen(crsFirst.gPrime)
+        payload += serializeVarLen(crsFirst.uPrime)
 
-        payload += serializeVarLen(crs.h)
-        payload += serializeVarLen(crs.v)
-        payload += serializeVarLen(crs.hPrime)
-        payload += serializeVarLen(crs.vPrime)
+        payload += serializeVarLen(crsFirst.h)
+        payload += serializeVarLen(crsFirst.v)
+        payload += serializeVarLen(crsFirst.hPrime)
+        payload += serializeVarLen(crsFirst.vPrime)
 
+        payload += serializeVarLen(crsSecond.g)
+        payload += serializeVarLen(crsSecond.u)
+        payload += serializeVarLen(crsSecond.gPrime)
+        payload += serializeVarLen(crsSecond.uPrime)
+
+        payload += serializeVarLen(crsSecond.h)
+        payload += serializeVarLen(crsSecond.v)
+        payload += serializeVarLen(crsSecond.hPrime)
+        payload += serializeVarLen(crsSecond.vPrime)
         payload += serializeVarLen(ttpPublicKey)
 
         return payload
@@ -49,48 +59,83 @@ class BilinearGroupCRSPayload(
             val (groupGt, groupGtSize) = deserializeVarLen(buffer, localOffset)
             localOffset += groupGtSize
 
-            val (crsG, crsGSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsGSize
+            val (crsFirstG, crsFirstGSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstGSize
 
-            val (crsU, crsUSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsUSize
+            val (crsFirstU, crsFirstUSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstUSize
 
-            val (crsGPrime, crsGPrimeSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsGPrimeSize
+            val (crsFirstGPrime, crsFirstGPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstGPrimeSize
 
-            val (crsUPrime, crsUPrimeSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsUPrimeSize
+            val (crsFirstUPrime, crsFirstUPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstUPrimeSize
 
-            val (crsH, crsHSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsHSize
+            val (crsFirstH, crsFirstHSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstHSize
 
-            val (crsV, crsVSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsVSize
+            val (crsFirstV, crsFirstVSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstVSize
 
-            val (crsHPrime, crsHPrimeSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsHPrimeSize
+            val (crsFirstHPrime, crsFirstHPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstHPrimeSize
 
-            val (crsVPrime, crsVPrimeSize) = deserializeVarLen(buffer, localOffset)
-            localOffset += crsVPrimeSize
+            val (crsFirstVPrime, crsFirstVPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsFirstVPrimeSize
+
+            val (crsSecondG, crsSecondGSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondGSize
+
+            val (crsSecondU, crsSecondUSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondUSize
+
+            val (crsSecondGPrime, crsSecondGPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondGPrimeSize
+
+            val (crsSecondUPrime, crsSecondUPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondUPrimeSize
+
+            val (crsSecondH, crsSecondHSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondHSize
+
+            val (crsSecondV, crsSecondVSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondVSize
+
+            val (crsSecondHPrime, crsSecondHPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondHPrimeSize
+
+            val (crsSecondVPrime, crsSecondVPrimeSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += crsSecondVPrimeSize
 
             val (ttpPubKeyBytes, ttpPubKeySize) = deserializeVarLen(buffer, localOffset)
             localOffset += ttpPubKeySize
 
             val groupElementsBytes = BilinearGroupElementsBytes(groupG, groupH, groupGt)
-            val crsBytes =
+            val crsFirstBytes =
                 CRSBytes(
-                    crsG,
-                    crsU,
-                    crsGPrime,
-                    crsUPrime,
-                    crsH,
-                    crsV,
-                    crsHPrime,
-                    crsVPrime
+                    crsFirstG,
+                    crsFirstU,
+                    crsFirstGPrime,
+                    crsFirstUPrime,
+                    crsFirstH,
+                    crsFirstV,
+                    crsFirstHPrime,
+                    crsFirstVPrime
+                )
+            val crsSecondBytes =
+                CRSBytes(
+                    crsSecondG,
+                    crsSecondU,
+                    crsSecondGPrime,
+                    crsSecondUPrime,
+                    crsSecondH,
+                    crsSecondV,
+                    crsSecondHPrime,
+                    crsSecondVPrime
                 )
 
             return Pair(
-                BilinearGroupCRSPayload(groupElementsBytes, crsBytes, ttpPubKeyBytes),
+                BilinearGroupCRSPayload(groupElementsBytes, crsFirstBytes,crsSecondBytes, ttpPubKeyBytes),
                 localOffset - offset
             )
         }

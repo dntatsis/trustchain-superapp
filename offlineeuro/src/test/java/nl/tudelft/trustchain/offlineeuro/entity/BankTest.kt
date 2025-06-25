@@ -2,11 +2,14 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.util.Log
 import kotlinx.coroutines.runBlocking
+import nl.tudelft.trustchain.offlineeuro.communication.CRSTransformer
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
@@ -26,10 +29,13 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigInteger
+import kotlin.coroutines.CoroutineContext
 
 class BankTest {
     private val ttpGroup = BilinearGroup(PairingTypes.FromFile)
-    private val crs = CRSGenerator.generateCRSMap(ttpGroup).first
+    private val crsValue = CRSGenerator.generateCRSMap(ttpGroup)
+    private val crs = crsValue.first
+    private val crsMap = crsValue.second
     private val depositedEuroManager = Mockito.mock(DepositedEuroManager::class.java)
 
     lateinit var logMock: MockedStatic<Log>
@@ -60,6 +66,7 @@ class BankTest {
                 BilinearGroupCRSReplyMessage(
                     ttpGroup.toGroupElementBytes(),
                     crs.toCRSBytes(),
+                    CRSTransformer.crsValues(crsMap),
                     AddressMessage("TTP", Role.REG_TTP, "SomeBytes".toByteArray(), "More Bytes".toByteArray())
                 )
             )
