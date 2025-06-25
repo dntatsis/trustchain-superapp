@@ -70,15 +70,29 @@ class IPV8CommunicationProtocol(
             waitForMessageAsync(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
         Log.i("adr","message received!\ncontents are as follows:\ng:${message.groupDescription.g}\nh:${message.groupDescription.h}\ngt:${message.groupDescription.gt}")
         if(participant is TTP){ // copy regttp group into ttp
-            (participant as TTP).regGroup.updateGroupElements(message.groupDescription)
-            val crs = message.crs.toCRS((participant as TTP).regGroup)
-            (participant as TTP).regCrs = crs
-            Log.d("adr_GROUPCHECK","g:${(participant as TTP).regGroup.g}, \nh:${(participant as TTP).regGroup.h}, \ngt:${(participant as TTP).regGroup.gt}")
+            (participant as TTP).group.updateGroupElements(message.groupDescription)
+            val crsFirst = message.crsFirst.toCRS((participant as TTP).group)
+            val crsSecond = message.crsSecond.toCRS((participant as TTP).group)
 
+            (participant as TTP).crs = crsFirst
+            Log.d("adr_GROUPCHECK","g:${(participant as TTP).group.g}, \nh:${(participant as TTP).group.h}, \ngt:${(participant as TTP).group.gt} \n${(participant as TTP).crs} \n" +
+                "${(participant as TTP).crs}")
+            val newCrsMap = mapOf(
+                crsFirst.g to crsSecond.g,
+                crsFirst.u to crsSecond.uPrime,
+                crsFirst.gPrime to crsSecond.gPrime,
+                crsFirst.uPrime to crsSecond.uPrime,
+                crsFirst.h to crsSecond.h,
+                crsFirst.v to crsSecond.v,
+                crsFirst.hPrime to crsSecond.hPrime,
+                crsFirst.vPrime to crsSecond.vPrime,
+                )
+
+            (participant as TTP).crsMap = newCrsMap
         }
         else{
             participant.group.updateGroupElements(message.groupDescription)
-            val crs = message.crs.toCRS(participant.group)
+            val crs = message.crsFirst.toCRS(participant.group)
             participant.crs = crs
             Log.d("adr_GROUPCHECK","g:${participant.group.g}, \nh:${participant.group.h},\ngt:${participant.group.gt}")
 
@@ -244,18 +258,19 @@ class IPV8CommunicationProtocol(
         addressBookManager.insertAddress(address)
         participant.onDataChangeCallback?.invoke("addr_mess_recv by $message.name") // participant has received an address
     }
-
     private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
         if (participant !is REGTTP) { // only registrar should respond to such messages
             return
         } else {
             val groupBytes = participant.group.toGroupElementBytes()
             val crsBytes = participant.crs.toCRSBytes()
+            val secondCrsBytes = (participant as TTP).getSecondCrs()
             val peer = message.requestingPeer
             Log.i("adr","received a Group request")
             community.sendGroupDescriptionAndCRS(
                 groupBytes,
                 crsBytes,
+                secondCrsBytes,
                 participant.publicKey.toBytes(),
                 peer
             )
