@@ -56,9 +56,13 @@ Lastly, we created a demo that integrates all the roles involved in the protocol
 The demo showcases the full flow: registration with distributed TTPs, secret sharing, secret recovery via Schnorr signature interaction, and bank identity and secret recovery through collaboration in case of fraud.
 
 
-### Registration and Secret Recovery Flow
+### Registration Flow 
 
-![Registration and Recovery Flow](src/main/images/RegistrationAndRecoverSharesFlows.jpeg)
+![Registration and Recovery Flow](src/main/images/RegistrationFlow.png)
+
+## Secret Recovery Flow
+
+![Registration and Recovery Flow](src/main/images/RecoverSharesFlow.png)
 
 ### Connecting to TTPs
 
