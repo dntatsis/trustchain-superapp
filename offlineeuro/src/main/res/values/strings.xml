@@ -10,4 +10,9 @@
     <string name="toggle_demo_mode">Turn %s Demo Mode</string>
     <string name="trust_scores_menu_item">Trustscores DB</string>
     <string name="trust_scores_db_item_score">%d%%</string>
+    <string name="hello_name">Hello _name_</string>
+    <string name="secret_shared_users">Secret Shared users</string>
+    <string name="ttp_name">TTP Name</string>
+    <string name="other_ttps">Other TTPs</string>
+    <string name="sync_userlist">Sync userlist</string>
 </resources>

@@ -19,6 +19,8 @@
  */
 package nl.tudelft.trustchain.offlineeuro.cryptography.shamir;
 
+import android.util.Log;
+
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,7 +55,11 @@ public class Scheme {
      */
     public Scheme(SecureRandom random, int n, int k) {
         this.random = random;
+        if (k <= 1){
+            Log.d("adr wrong k","Wrong k");
+        }
         checkArgument(k > 1, "K must be > 1");
+
         checkArgument(n >= k, "N must be >= K");
         checkArgument(n <= 255, "N must be <= 255");
         this.n = n;

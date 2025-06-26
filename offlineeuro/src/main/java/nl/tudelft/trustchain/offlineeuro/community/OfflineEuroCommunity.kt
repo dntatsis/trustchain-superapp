@@ -43,6 +43,7 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizat
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.math.BigInteger
@@ -142,13 +143,14 @@ class OfflineEuroCommunity(
     fun sendGroupDescriptionAndCRS(
         groupBytes: BilinearGroupElementsBytes,
         crsBytes: CRSBytes,
+        secondCrsBytes: CRSBytes,
         ttpPublicKeyBytes: ByteArray,
         requestingPeer: Peer
     ) {
         val groupAndCrsPacket =
             serializePacket(
                 MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY,
-                BilinearGroupCRSPayload(groupBytes, crsBytes, ttpPublicKeyBytes)
+                BilinearGroupCRSPayload(groupBytes, crsBytes, secondCrsBytes, ttpPublicKeyBytes)
             )
 
         send(requestingPeer, groupAndCrsPacket)
@@ -164,17 +166,18 @@ class OfflineEuroCommunity(
         peer: Peer
     ) {
         val groupElements = payload.bilinearGroupElements
-        val crs = payload.crs
-
+        val crsFirst = payload.crsFirst
+        val crsSecond = payload.crsSecond
         val ttpAddressMessage = AddressMessage("TTP", Role.REG_TTP, payload.ttpPublicKey, peer.publicKey.keyToBin()) // TODO: Get rid of hardcoded "TTP"s!
 
-        val message = BilinearGroupCRSReplyMessage(groupElements, crs, ttpAddressMessage)
+        val message = BilinearGroupCRSReplyMessage(groupElements, crsFirst,crsSecond, ttpAddressMessage)
         addMessage(message)
     }
 
     fun registerAtTTP(
         name: String,
         myPublicKeyBytes: ByteArray,
+        role: Role,
         publicKeyTTP: ByteArray
     ) {
         val ttpPeer = getPeerByPublicKeyBytes(publicKeyTTP) ?: throw Exception("TTP not found")
@@ -184,7 +187,8 @@ class OfflineEuroCommunity(
                 MessageID.REGISTER_AT_TTP,
                 TTPRegistrationPayload(
                     name,
-                    myPublicKeyBytes
+                    myPublicKeyBytes,
+                    role
                 )
             )
 
@@ -192,7 +196,8 @@ class OfflineEuroCommunity(
     }
 
     fun requestSharefromTTP(
-        userName: String,
+        signature: SchnorrSignature,
+        name : String,
         publicKeyTTP: ByteArray
     ){
         val ttpPeer = getPeerByPublicKeyBytes(publicKeyTTP) ?: throw Exception("TTP not found")
@@ -201,7 +206,8 @@ class OfflineEuroCommunity(
             serializePacket(
                 MessageID.REQUEST_SHARE,
                 ShareRequestPayload(
-                    userName
+                    signature,
+                    name
                 )
             )
 
@@ -265,11 +271,13 @@ class OfflineEuroCommunity(
         val senderPKBytes = peer.publicKey.keyToBin()
         val userName = payload.userName
         val userPKBytes = payload.publicKey
+        val userRole = payload.role
 
         val message =
             TTPRegistrationMessage(
                 userName,
                 userPKBytes,
+                userRole,
                 senderPKBytes
             )
 
@@ -293,7 +301,7 @@ class OfflineEuroCommunity(
         peer: Peer,
         payload: ShareRequestPayload
     )  {
-        val message = ShareRequestMessage(payload.userName,peer)
+        val message = ShareRequestMessage(payload.signature, payload.name, peer)
         addMessage(message)
 
     }
@@ -600,15 +608,14 @@ class OfflineEuroCommunity(
     }
 
     fun sendFraudControlReply(
-        result: String,
+        result: ByteArray?,
         peer: Peer
     ) {
+        val payload = ByteArrayPayload(result ?: ByteArray(0))
         val packet =
             serializePacket(
                 MessageID.FRAUD_CONTROL_REPLY,
-                ByteArrayPayload(
-                    result.toByteArray()
-                )
+                payload
             )
         send(peer, packet)
     }
@@ -619,7 +626,7 @@ class OfflineEuroCommunity(
     }
 
     fun onFraudControlReply(payload: ByteArrayPayload) {
-        val fraudControlResult = payload.bytes.toString(Charsets.UTF_8)
+        val fraudControlResult = payload.bytes
         addMessage(FraudControlReplyMessage(fraudControlResult))
     }
 
@@ -637,6 +644,7 @@ class OfflineEuroCommunity(
                     role
                 )
             )
+        // Log.i("adr_peers",getPeers().toString())
         for (peer in getPeers()) {
             send(peer, addressPacket)
         }

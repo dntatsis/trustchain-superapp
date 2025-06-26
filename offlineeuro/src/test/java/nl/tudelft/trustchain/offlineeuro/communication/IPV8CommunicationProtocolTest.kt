@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.communication
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import kotlinx.coroutines.launch
@@ -19,27 +20,38 @@ import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizat
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.REGTTP
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.mockito.MockedStatic
 import org.mockito.Mockito
+import org.mockito.Mockito.mockStatic
+import org.mockito.Mockito.nullable
 import org.mockito.Mockito.`when`
+import org.mockito.junit.MockitoJUnitRunner
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import java.math.BigInteger
 
+@RunWith(MockitoJUnitRunner::class)
 class IPV8CommunicationProtocolTest {
     private val context = null
     private val driver =
@@ -75,19 +87,20 @@ class IPV8CommunicationProtocolTest {
     private val receivingPeer = Mockito.mock(Peer::class.java)
 
     private val iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+    lateinit var logMock: MockedStatic<Log>
 
     @Before
     fun setup() {
         `when`(community.messageList).thenReturn(iPV8CommunicationProtocol.messageList)
         val ttpAddressMessage = AddressMessage(ttpAddress.name, ttpAddress.type, ttpAddress.publicKey.toBytes(), ttpAddress.peerPublicKey!!)
         `when`(community.getGroupDescriptionAndCRS()).then {
-            val message = BilinearGroupCRSReplyMessage(groupDescription.toGroupElementBytes(), ttpCRS.first.toCRSBytes(), ttpAddressMessage)
+            val message = BilinearGroupCRSReplyMessage(groupDescription.toGroupElementBytes(), ttpCRS.first.toCRSBytes(), CRSTransformer.crsValues(ttpCRS.second), ttpAddressMessage)
             community.messageList.add(message)
         }
 
-        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any(), any())).then { }
+        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any(), any(), any())).then { }
 
-        `when`(community.registerAtTTP(any(), any(), any())).then { }
+        `when`(community.registerAtTTP(any(), any(), any(), any())).then { }
 
         `when`(community.sendBlindSignatureRandomnessReply(any(), any())).then { }
         `when`(community.sendBlindSignature(any(), any())).then { }
@@ -113,12 +126,26 @@ class IPV8CommunicationProtocolTest {
         }
     }
 
+    @Before
+    fun mockAndroidLog() {
+        logMock = mockStatic(Log::class.java)
+
+        logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+    }
+
+    @After
+    fun closeAndroidLogMock() {
+        logMock.close()
+    }
+
     @Test
     fun getGroupDescriptionAndCRSTest() {
         val ttp = Mockito.mock(TTP::class.java)
         iPV8CommunicationProtocol.participant = ttp
         `when`(ttp.group).thenReturn(groupDescription)
         `when`(ttp.crs).thenReturn(ttpCRS.first)
+        `when`(ttp.regGroup).thenReturn(groupDescription)
 
         runBlocking {
             launch {
@@ -138,11 +165,12 @@ class IPV8CommunicationProtocolTest {
     fun sendBilinearGroupAndCRSTest() {
         val message = BilinearGroupCRSRequestMessage(receivingPeer)
 
-        val ttp = Mockito.mock(TTP::class.java)
+        val ttp = Mockito.mock(REGTTP::class.java)
         iPV8CommunicationProtocol.participant = ttp
 
         `when`(ttp.group).thenReturn(groupDescription)
         `when`(ttp.crs).thenReturn(ttpCRS.first)
+//        `when`(ttp.crsMap).thenReturn(ttpCRS.second)
         `when`(ttp.publicKey).thenReturn(ttpPK)
 
         val expectedGroupElements = groupDescription.toGroupElementBytes()
@@ -150,7 +178,7 @@ class IPV8CommunicationProtocolTest {
 
         community.messageList.add(message)
         verify(community, times(1))
-            .sendGroupDescriptionAndCRS(expectedGroupElements, expectedCRSBytes, ttpAddress.publicKey.toBytes(), receivingPeer)
+            .sendGroupDescriptionAndCRS(eq(expectedGroupElements), eq(expectedCRSBytes), anyOrNull(), eq(ttpAddress.publicKey.toBytes()), eq(receivingPeer))
     }
 
     @Test
@@ -158,8 +186,8 @@ class IPV8CommunicationProtocolTest {
         val publicKey = groupDescription.generateRandomElementOfG()
         val userName = "UserTryingToRegister"
         val participant = Mockito.mock(User::class.java)
-        `when`(participant.publicKey).thenReturn(publicKey)
-        `when`(participant.name).thenReturn(userName)
+        //`when`(participant.publicKey).thenReturn(publicKey)
+        //`when`(participant.name).thenReturn(userName)
         `when`(participant.group).thenReturn(groupDescription)
 
         iPV8CommunicationProtocol.participant = participant
@@ -168,7 +196,7 @@ class IPV8CommunicationProtocolTest {
         )
         iPV8CommunicationProtocol.register(userName, publicKey, ttpAddress.name)
         // Assert that the registration request is sent correctly
-        verify(community, times(1)).registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+        verify(community, times(1)).registerAtTTP(userName, publicKey.toBytes(), Role.User, ttpAddress.peerPublicKey!!)
     }
 
     @Test

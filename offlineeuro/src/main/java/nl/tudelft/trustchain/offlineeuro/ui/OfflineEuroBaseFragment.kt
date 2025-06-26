@@ -7,7 +7,7 @@ import nl.tudelft.trustchain.common.ui.BaseFragment
 
 open class OfflineEuroBaseFragment(contentLayoutId: Int = 0) : BaseFragment(contentLayoutId) {
     protected val logger = KotlinLogging.logger {}
-
+    var isAllRoles = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

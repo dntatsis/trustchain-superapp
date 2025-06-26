@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.Peer
@@ -26,11 +27,16 @@ import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import nl.tudelft.trustchain.offlineeuro.entity.Transaction
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.entity.Wallet
 import nl.tudelft.trustchain.offlineeuro.entity.WalletEntry
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
 import org.mockito.Mockito
+import org.mockito.Mockito.mockStatic
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -47,6 +53,20 @@ class GrowthTest {
     private val crs = CRSGenerator.generateCRSMap(group).first
 
     private var i = 0
+    lateinit var logMock: MockedStatic<Log>
+
+    @Before
+    fun mockAndroidLog() {
+        logMock = mockStatic(Log::class.java)
+
+        logMock.`when`<Int> { Log.i(any(), any()) }.thenReturn(0)
+        logMock.`when`<Int> { Log.d(any(), any()) }.thenReturn(0)
+    }
+
+    @After
+    fun closeAndroidLogMock() {
+        logMock.close()
+    }
 
     @Test
     fun testGrowth() {
@@ -93,7 +113,6 @@ class GrowthTest {
 
         val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
         addMessageToList(user, bankAddressMessage)
-        // TODO MAKE THIS UNNECESSARY
         bankCommunity.messageList.add(bankAddressMessage)
         // Prepare mock elements
         val byteArrayCaptor = argumentCaptor<ByteArray>()
@@ -152,7 +171,7 @@ class GrowthTest {
 
     fun createTestUser(): User {
         val addressBookManager = createAddressManager(group)
-        val walletManager = WalletManager(null, group, createDriver())
+        val walletManager = WalletManager(null, group, "wallet_test", createDriver())
 
         // Add the community for later access
         val userName = "User${userList.size}"
@@ -161,6 +180,8 @@ class GrowthTest {
 
         Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
         val user = User(userName, group, null, walletManager, communicationProtocol, runSetup = false)
+        user.generateKeyPair()
+        user.wallet = Wallet(user.privateKey, user.publicKey, walletManager)
         user.crs = crs
         userList[user] = community
         user.generateKeyPair()

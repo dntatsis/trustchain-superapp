@@ -9,18 +9,18 @@ import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 
-class ConnectedUserManager {
+class RegisteredUserManagerTest {
     private val driver =
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
             Database.Schema.create(this)
         }
 
     private val group = BilinearGroup()
-    private val registeredUserManager = RegisteredUsers(null, group, driver)
+    private val registeredUserManager = RegisteredUserManager(null, group, driver)
 
     @Before
     fun before() {
-        registeredUserManager.clearAll()
+        registeredUserManager.clearAllRegisteredUsers()
     }
 
     @Test

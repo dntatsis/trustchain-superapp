@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
@@ -104,6 +105,7 @@ object Transaction {
         crs: CRS
     ): TransactionResult {
         // Verify if the Digital euro is signed
+
         val digitalEuro = transaction.digitalEuro
         if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup) ||
             !digitalEuro.signature.signedMessage.contentEquals(digitalEuro.serialNumber.toByteArray() + digitalEuro.firstTheta1.toBytes())

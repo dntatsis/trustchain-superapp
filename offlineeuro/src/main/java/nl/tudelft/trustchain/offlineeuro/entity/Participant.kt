@@ -11,18 +11,20 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 abstract class Participant(
     val communicationProtocol: ICommunicationProtocol,
     val name: String,
-    val onDataChangeCallback: ((String?) -> Unit)? = null
+    var onDataChangeCallback: ((String?) -> Unit)? = null
 ) {
-    protected lateinit var privateKey: Element
+    lateinit var privateKey: Element
     lateinit var publicKey: Element
     lateinit var group: BilinearGroup
     val randomizationElementMap: HashMap<Element, Element> = hashMapOf()
     lateinit var crs: CRS
-
-    suspend fun setUp() {
+    var isAllRoles = false // is Participant a part of an AllRolesFragment?
+    suspend fun setUp(flag: Boolean = true) {
         getGroupDescriptionAndCRS()
-        generateKeyPair()
-        registerAtTTP()
+        if (flag){ // true if user or bank calls
+            generateKeyPair()
+            registerAtTTP()
+        }
     }
 
     suspend fun getGroupDescriptionAndCRS() {
@@ -35,7 +37,6 @@ abstract class Participant(
     }
 
     fun registerAtTTP() {
-        // TODO NAME OF TTP
         communicationProtocol.register(name, publicKey, "TTP")
     }
 
