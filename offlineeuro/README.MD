@@ -1,43 +1,82 @@
-# EuroToken - A Digital Euro
-EU member states of the Eurozone [are considering creating a blockchain-inspired digital Eurotoken using a P2P architecture](https://haldus.eestipank.ee/sites/default/files/2021-07/Work%20stream%203%20-%20A%20New%20Solution%20-%20Blockchain%20and%20eID_1.pdf).
-The superapp contains a fully functional digital cash implementation, still experimental and tested within 1 retail location for 1 morning in live production usage with real financial transactions.
+# Offline Euro – Extension: Distributed TTPs and Privacy-Preserving Identity Recovery (Euro 1 Team 4)
 
-## Web-of-Trust
-In standard operation, EuroToken communicates with a gateway controlled by authorities to verify the authenticity of transactions.
-However, EuroToken needs to be able to function in case of world-scale disasters and system outages, and thus in case of a gateway not being available for an extended period of time.
-Even more, EuroToken is also built such that it works in remote locations without a large peer-to-peer network.
-Not having a large network to confirm transactions with comes at the cost of induced risk, primarily due to the double spending problem.
+Members:
+- Dorian Erhan - 5580277
+- Ivans Kravcevs - 5450535
+- Dennis Heijmans - 5444993
+- Dimitris Ntatsis - 6216269
+- Jamila Seyidova - 5796806
 
-### Double spending
-Double spending is a problem that occurs when someone spends the same amount of money more than once.
-This problem is very prevalent with digital offline-capable currencies.
+We preserved the original README in [`README-original.md`](README-original.MD) for reference.
 
-The problem of double spending arises because digital currencies are not regulated by a central authority.
-This means that there is no one to verify that a transaction is valid.
-If no central authority is available to verify the validity of a transaction, then it is possible for someone to spend the same amount of money more than once.
+## Multiple TTPs
+This project extends the EuroToken system by replacing the single Trusted Third Party (TTP) used during the user identification and initialization phase with a distributed network of multiple TTPs.
 
-Double spending is a major problem for digital currencies, as it undermines their trustworthiness.
-If people cannot trust that a digital currency is not susceptible to double spending, then they are less likely to use it.
+In this new design, users register with multiple TTPs instead of one, and no single TTP holds enough information to identify a user on its own.
 
-Double spending in EuroToken occurs when a malicious user sends a transaction to a wallet, and then sends the same transaction to another wallet whilst the second receiver is not aware of the first transaction.
+A quorum of TTPs must collaborate to reconstruct the user's identity in the event of a double-spending incident.
 
-#### Requirements for solution
-To adhere to the standard of EuroToken, the solution for double spending has to comply to the following requirements:
-* Fully offline capable
-* Completely distributed
-* Permissionless
-* Pseudo-anonymous
-* Independent of other authorities, such as banks
+The goal of this change is to enhance user privacy and reduce the risk of a single point of failure.
 
-### Double Spending mitigation
-To counter double spending, EuroToken attempts to create a [web-of-trust](https://en.wikipedia.org/wiki/Web_of_trust) to help verify the authenticity of transactions and users.
-The basis of the web-of-trust is proof by participation of users in the network.
-If someone participates actively in the network, by making transactions, then they are regarded as more trustworthy than someone who does not participate.
-[Read about the specific implementation of the web-of-trust](web-of-trust.md)
 
-### Future work
-Some further research needs to be done on how to calculate this score, beyond our linear additive approach.
-We could opt for more sophisticated methods, which allow less misuse of the system and faster dissemination of bad actors within the system.
-Another action that needs to be implemented is tying an update to connect a score update to the corresponding transaction.
-This prohibits adversaries from continuously updating scores.
-Additional research could also be done into the prevention of cycle boosting trust scores.
+This system assumes that a threshold (>=K) of TTPs remains honest.
+
+Even if some TTPs collude or go offline during the deanonymization process, the user’s identity remains protected unless the quorum is reached.
+
+## Shamir Secret Sharing
+
+To support this functionality, we integrated [Codahale’s Shamir Secret Sharing Java library](https://github.com/codahale/shamir), which allows a secret to be split into multiple parts, such that only a defined threshold of parts (k out of n) is required to reconstruct it.
+
+This approach is based on the mathematical foundations introduced by Shamir and further discussed in [Bogdanov, 2007].
+
+## Schnorr signatures
+
+We also added support for Schnorr signatures on the user side.
+
+Users can now send blinded Schnorr signature requests to the TTP and later recover and verify the signature.
+
+This feature strengthens unlinkability while maintaining cryptographic proof of ownership.
+
+In addition, we use these Schnorr signatures during share recovery to prevent malicious users from requesting secret shares with fake or replayed messages.
+
+Each request includes a timestamp and a unique user identifier, signed using the user’s private key. On the TTP side, the signature is verified and the message is only accepted if it is fresh and comes from a known, trusted sender.
+
+## Double Spending
+
+In addition, we implemented the communication protocol between the bank and TTPs that is triggered during a double-spending event.
+
+When such an event is detected, the bank contacts multiple TTPs to collaboratively reconstruct the user’s identity.
+
+When a sufficient number of TTPs respond with valid shares, then bank reconstructs user's secret from them.
+
+## All-Roles Demo
+
+Lastly, we created a demo that integrates all the roles involved in the protocol, including users, the bank, and multiple TTPs.
+
+The demo showcases the full flow: registration with distributed TTPs, secret sharing, secret recovery via Schnorr signature interaction, and bank identity and secret recovery through collaboration in case of fraud.
+
+
+### Registration and Secret Recovery Flow
+
+![Registration and Recovery Flow](src/main/images/RegistrationAndRecoverSharesFlows.jpeg)
+
+### Connecting to TTPs
+
+![Connect To TTP Flow](src/main/images/ConnectToTTPFlow.jpeg)
+
+### Double Spending Detection and Identity Reconstruction Flow
+
+![Double Spending Detection Flow](src/main/images/DoubleSpendingDetectionFlow.jpeg)
+
+## Future Work
+
+We consider the following to be possible as a continuation of this project:
+
+- Expand the secret to be more complex than a string (replacing it with EUDI Wallet or some sort of external identifier)
+- Modify communication behaviour to simulate inactive/byzantine TTPs
+- Perform more extensive testing with multiple devices
+- Add WebOfTrust elements to limit the transaction abilities of fraudster users.
+
+## References
+
+- Bogdanov, D. *Foundations and Properties of Shamir's Secret Sharing Scheme*. Research Seminar in Cryptography, University of Tartu, Institute of Computer Science, May 1st, 2007.
