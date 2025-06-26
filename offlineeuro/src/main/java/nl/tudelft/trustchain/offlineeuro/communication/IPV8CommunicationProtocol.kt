@@ -65,18 +65,21 @@ class IPV8CommunicationProtocol(
     override lateinit var participant: Participant
 
     override suspend fun getGroupDescriptionAndCRS() {
-        community.getGroupDescriptionAndCRS()
+        community.getGroupDescriptionAndCRS() // send group request
         val message =
-            waitForMessageAsync(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
-        Log.i("adr","message received!\ncontents are as follows:\ng:${message.groupDescription.g}\nh:${message.groupDescription.h}\ngt:${message.groupDescription.gt}")
-        if(participant is TTP){ // copy regttp group into ttp
-            (participant as TTP).group.updateGroupElements(message.groupDescription)
-            val crsFirst = message.crsFirst.toCRS((participant as TTP).group)
+            waitForMessageAsync(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage // wait for response
+
+
+        participant.group.updateGroupElements(message.groupDescription)
+        val crsFirst = message.crsFirst.toCRS(participant.group) // copy regttp crs into receiver
+        participant.crs = crsFirst
+
+        if(participant is TTP){
+
             val crsSecond = message.crsSecond.toCRS((participant as TTP).group)
 
             (participant as TTP).crs = crsFirst
-            Log.d("adr_GROUPCHECK","g:${(participant as TTP).group.g}, \nh:${(participant as TTP).group.h}, \ngt:${(participant as TTP).group.gt} \n${(participant as TTP).crs} \n" +
-                "${(participant as TTP).crs}")
+
             val newCrsMap = mapOf(
                 crsFirst.g to crsSecond.g,
                 crsFirst.u to crsSecond.uPrime,
@@ -88,13 +91,9 @@ class IPV8CommunicationProtocol(
                 crsFirst.vPrime to crsSecond.vPrime,
                 )
 
-            (participant as TTP).crsMap = newCrsMap
+            (participant as TTP).crsMap = newCrsMap // copy regttp crsMap into ttp
         }
         else{
-            participant.group.updateGroupElements(message.groupDescription)
-            val crs = message.crsFirst.toCRS(participant.group)
-            participant.crs = crs
-            Log.d("adr_GROUPCHECK","g:${participant.group.g}, \nh:${participant.group.h},\ngt:${participant.group.gt}")
 
             messageList.add(message.addressMessage)
 
@@ -111,7 +110,7 @@ class IPV8CommunicationProtocol(
         community.registerAtTTP(userName, publicKey.toBytes(), getParticipantRole(), ttpAddress.peerPublicKey!!)
     }
 
-    override fun requestShare( // send your request for a share
+    override fun requestShare( // send your request for a share (from user to TTP)
         signature: SchnorrSignature,
         name : String,
         ttpname: String
@@ -186,16 +185,18 @@ class IPV8CommunicationProtocol(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof,
     ): Map<String, FraudControlReplyMessage> {
-        val ttpAddress =addressBookManager.getAllAddresses().filter { address ->  address.type == Role.REG_TTP || address.type == Role.TTP}
+
+        val ttpAdresses =addressBookManager.getAllAddresses().filter { address ->  address.type == Role.REG_TTP || address.type == Role.TTP} // collect all TTPs
+
         val messages = mutableMapOf<Address, FraudControlReplyMessage>()
-        for (ttpVal in ttpAddress) {
+        for (ttpVal in ttpAdresses) {
             community.sendFraudControlRequest(
                 GrothSahaiSerializer.serializeGrothSahaiProof(firstProof),
                 GrothSahaiSerializer.serializeGrothSahaiProof(secondProof),
                 ttpVal.peerPublicKey!!
             )
             val message = waitForMessage(CommunityMessageType.FraudControlReplyMessage) as FraudControlReplyMessage
-            messages[ttpVal] = message
+            messages[ttpVal] = message // collect share from TTP
         }
 
         val result = mutableMapOf<String, FraudControlReplyMessage>()
@@ -264,7 +265,7 @@ class IPV8CommunicationProtocol(
         } else {
             val groupBytes = participant.group.toGroupElementBytes()
             val crsBytes = participant.crs.toCRSBytes()
-            val secondCrsBytes = (participant as REGTTP).getSecondCrs()
+            val secondCrsBytes = (participant as REGTTP).getSecondCrs() //  crsMap values
             val peer = message.requestingPeer
             Log.i("adr","received a Group request")
             community.sendGroupDescriptionAndCRS(
@@ -357,36 +358,22 @@ class IPV8CommunicationProtocol(
         val signedTime = signedTimeStr.toLongOrNull()
         val isValidTime = signedTime != null && abs(System.currentTimeMillis() - signedTime) <= 2 * 60 * 1000 // allows only 2 minutes for replay attack
 
-        if (sender == signedUser && isValidTime) {
-//            Log.i("adr", "$signedMessage seems fine (not expired, matching sender)")
-        } else {
+        if (!(sender == signedUser && isValidTime)) {
 //            Log.i("adr", "Invalid signature timestamp or user mismatch. Time diff: ${System.currentTimeMillis() - (signedTime ?: 0)}")
             return
         }
 
-//        Log.i("adr", "Searching for $sender in \n$addressList")
         val senderPK = addressList.find { it.name == sender }?.publicKey
 
         if (senderPK == null) {
-//            Log.i("adr", "User $sender not found in address book.")
             return
         }
 
-        //TODO: finish this one
-//        val group = if (participant is REGTTP) ttp.group else ttp.regGroup
         val group = ttp.group
-
-//        Log.i("adr", "g = ${group.g}")
-//        Log.i("adr", "group order = ${group.getZrOrder()}")
 
         val valid = Schnorr.verifySchnorrSignature(message.signature, senderPK, group)
 
-//        Log.i("adrspecial", "Valid: $valid, from: $sender, \nmessage: $signedMessage\n${message.signature.signedMessage.contentEquals(
-//            "$signedUser:$signedTimeStr".toByteArray(Charsets.UTF_8)
-//        )}, from PK: $senderPK")
-
         if (!valid) {
-//            Log.i("adrspecial", "Signature verification failed - possible impersonation!")
             return
         }
 
@@ -396,22 +383,7 @@ class IPV8CommunicationProtocol(
             community.sendShareRequestResponsePacket(message.peer, response)
         }
     }
-//    private fun handleShareResponseMessage(message: ShareResponseMessage){ // When receiving a Share Response, trigger the callback
-//        if(participant is User && message.userName == participant.name){
-//            // partial secret share has been returned.
-//                val index = (participant as User).myShares.indexOfFirst { it.first == message.sender }
-//
-//                if (index != -1) {
-//                    (participant as User).myShares[index] = message.sender to message.secretShare
-//                } else {
-//                    print("Name not found in the list")
-//                }
-//            participant.onDataChangeCallback?.invoke("secret_share_recv " + message.secretShare.toString())
-//        }
-//        // TODO: add bank logic here
-//        return
-//
-//    }
+
     private fun handleConnectionMessage(message: TTPConnectionMessage) { // Handle TTP Connection message by adding the share to the participants secret share library.
         if (participant !is REGTTP && participant !is TTP) {
             return
@@ -440,7 +412,6 @@ class IPV8CommunicationProtocol(
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
             is ShareRequestMessage -> handleShareRequestMessage(message)
-//            is ShareResponseMessage -> handleShareResponseMessage(message)
             is TTPConnectionMessage -> handleConnectionMessage(message)
             is AddressRequestMessage -> handleAddressRequestMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)

@@ -31,7 +31,7 @@ class User(
     var identified: Boolean = false,
 
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
-    companion object {
+    companion object { // Change N, K values here
         const val maximum_shares = 3
         const val minimum_shares = 2
     }
@@ -48,7 +48,6 @@ class User(
 
         if (walletManager == null) {
             walletManager = WalletManager(context, group,"wallet_$name")
-            Log.i("Adr wallet manager", walletManager.toString())
         }
     }
 
@@ -59,123 +58,98 @@ class User(
      }
 
     fun sendDigitalEuroTo(nameReceiver: String): String {
-        // TODO NEW: alternative for offline
-        lateinit var randomizationElements: RandomizationElements
-        if (!isAllRoles){
-            randomizationElements =  communicationProtocol.requestTransactionRandomness(nameReceiver, group) // message exchange 1
-        }
-        else{
-            Log.i("adr_recover","asking to send a euro")
-
-            var sent_pk = publicKey.toBytes()
-
-            var combinedUserAndBank = ParticipantHolder.user?.plus(ParticipantHolder.bank)
-            var index = combinedUserAndBank!!.indexOfFirst {it!!.name == nameReceiver}
-
-            if (index != -1){
-                val publicKeyDec = combinedUserAndBank[index]!!.group.gElementFromBytes(sent_pk)
-                Log.i("adr send","$index: $combinedUserAndBank \n $publicKey,\n $publicKeyDec")
-
-                val randomizationElementsOther = combinedUserAndBank[index]!!.generateRandomizationElements(publicKeyDec)
-                val randomizationElementBytes = randomizationElementsOther.toRandomizationElementsBytes()
-                randomizationElements = randomizationElementBytes.toRandomizationElements(group)
-                Log.i("adr send sign check","$randomizationElementsOther\n$randomizationElements,\n${randomizationElements == randomizationElementsOther}")
+        val randomizationElements = getRandomizationElements(nameReceiver)
+        val transactionDetails = wallet.spendEuro(randomizationElements, group, crs)
+            ?: run {
+                handleTransactionFailure(nameReceiver)
+                throw Exception("No euro to spend")
             }
 
+        val result = sendTransactionDetails(nameReceiver, transactionDetails)
+        if(result == "Valid transaction"){
+            onDataChangeCallback?.invoke("Successful transaction")
         }
-        val transactionDetails =
-            wallet.spendEuro(randomizationElements, group, crs)
-                ?: throw Exception("No euro to spend")
-
-        lateinit var result:String
-        if (!isAllRoles) {
-            result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails) // message exchange 2
-        }
-        else{
-            var transactionDetailsToB = transactionDetails.toTransactionDetailsBytes()
-            var sentPK = publicKey.toBytes()
-            var combinedUserAndBank = ParticipantHolder.user?.plus(ParticipantHolder.bank)
-            var index = combinedUserAndBank!!.indexOfFirst {it!!.name == nameReceiver}
-            if (index != -1) {
-
-                val groupRecv = combinedUserAndBank[index]!!.group
-
-                val publicKeyRecv = groupRecv.gElementFromBytes(sentPK)
-
-                val transactionDetailsRecv = transactionDetailsToB.toTransactionDetails(groupRecv)
-                val transactionResult = combinedUserAndBank[index]!!.onReceivedTransaction(transactionDetailsRecv, ParticipantHolder.bank!!.publicKey, publicKeyRecv)
-
-                result = transactionResult
-
-            }
-
-
-        }
-        onDataChangeCallback?.invoke(result)
         return result
     }
 
     fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
-        // TODO NEW: alternative for offline
-
-        lateinit var randomizationElements: RandomizationElements
-        if (!isAllRoles){
-            randomizationElements =  communicationProtocol.requestTransactionRandomness(nameReceiver, group) // message exchange 1
-        }
-        else{
-
-            var sent_pk = publicKey.toBytes()
-
-            var combinedUserAndBank = ParticipantHolder.user?.plus(ParticipantHolder.bank)
-            var index = combinedUserAndBank!!.indexOfFirst {it!!.name == nameReceiver}
-
-            if (index != -1){
-                val publicKeyDec = combinedUserAndBank[index]!!.group.gElementFromBytes(sent_pk)
-                Log.i("adr send","$index: $combinedUserAndBank \n $publicKey,\n $publicKeyDec")
-
-                val randomizationElementsOther = combinedUserAndBank[index]!!.generateRandomizationElements(publicKeyDec)
-                val randomizationElementBytes = randomizationElementsOther.toRandomizationElementsBytes()
-                randomizationElements = randomizationElementBytes.toRandomizationElements(group)
-                Log.i("adr send sign check","$randomizationElementsOther\n$randomizationElements,\n${randomizationElements == randomizationElementsOther}")
+        val randomizationElements = getRandomizationElements(nameReceiver)
+        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
+            ?: run {
+                handleTransactionFailure(nameReceiver)
+                throw Exception("No euro to send")
             }
 
-        }
-        Log.i("adr wallet","about to double spend")
+        val result = sendTransactionDetails(nameReceiver, transactionDetails)
+        onDataChangeCallback?.invoke(result)
+        return result
+    }
 
-
-        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
-        if (transactionDetails == null) {
-            throw Exception("No euro to send")
+    fun getRandomizationElements(receiverName: String)
+    :RandomizationElements
+    {
+        if (!isAllRoles){
+            return communicationProtocol.requestTransactionRandomness(receiverName, group) // message exchange 1
         }
+
+        val sent_pk = publicKey.toBytes()
+
+        val combinedUserAndBank = ParticipantHolder.user?.plus(ParticipantHolder.bank)
+        val index = combinedUserAndBank!!.indexOfFirst {it!!.name == receiverName}
+
+        if (index != -1){
+            val publicKeyDec = combinedUserAndBank[index]!!.group.gElementFromBytes(sent_pk)
+
+            val randomizationElementsOther = combinedUserAndBank[index]!!.generateRandomizationElements(publicKeyDec)
+            val randomizationElementBytes = randomizationElementsOther.toRandomizationElementsBytes()
+            val randomizationElements = randomizationElementBytes.toRandomizationElements(group)
+            return randomizationElements
+        }
+        throw Exception("Recipient not found in ParticipantHolder")
+
+    }
+
+    fun handleTransactionFailure(nameReceiver: String) {
+
+        val combinedUserAndBank = ParticipantHolder.user?.plus(ParticipantHolder.bank)
+        val index = combinedUserAndBank!!.indexOfFirst {it!!.name == nameReceiver}
+
+        combinedUserAndBank[index]!!.removeRandomness(publicKey) // remove randomness before throwing exception, else further sends fail
+        throw Exception("No euro to spend")
+
+    }
+
+    fun sendTransactionDetails(nameReceiver: String, transactionDetails: TransactionDetails)
+    :String {
 
         lateinit var result:String
         if (!isAllRoles) {
-            result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails) // message exchange 2
+            return communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails) // message exchange 2
         }
-        else{
-            var transactionDetailsToB = transactionDetails.toTransactionDetailsBytes()
-            var sentPK = publicKey.toBytes()
-            var combinedUserAndBank = ParticipantHolder.user?.plus(ParticipantHolder.bank)
-            var index = combinedUserAndBank!!.indexOfFirst {it!!.name == nameReceiver}
-            Log.i("adr send","$index: $combinedUserAndBank")
-            if (index != -1) {
+        var transactionDetailsToB = transactionDetails.toTransactionDetailsBytes()
+        var sentPK = publicKey.toBytes()
 
-                val groupRecv = combinedUserAndBank[index]!!.group
+        var combinedUserAndBank = ParticipantHolder.user?.plus(ParticipantHolder.bank)
+        var index = combinedUserAndBank!!.indexOfFirst {it!!.name == nameReceiver}
 
-                val publicKeyRecv = groupRecv.gElementFromBytes(sentPK)
+        if (index != -1) {
 
-                val transactionDetailsRecv = transactionDetailsToB.toTransactionDetails(groupRecv)
+            val groupRecv = combinedUserAndBank[index]!!.group
 
-                val transactionResult = combinedUserAndBank[index]!!.onReceivedTransaction(transactionDetailsRecv, ParticipantHolder.bank!!.publicKey, publicKeyRecv)
+            val publicKeyRecv = groupRecv.gElementFromBytes(sentPK)
 
-                result = transactionResult
+            val transactionDetailsRecv = transactionDetailsToB.toTransactionDetails(groupRecv)
 
-            }
+            val transactionResult = combinedUserAndBank[index]!!.onReceivedTransaction(transactionDetailsRecv, ParticipantHolder.bank!!.publicKey, publicKeyRecv)
 
+            result = transactionResult
+            onDataChangeCallback?.invoke(result)
+            return result
 
         }
-        onDataChangeCallback?.invoke(result)
-        return result
+        throw Exception("Recipient not found in ParticipantHolder")
+
+
     }
 
     fun connectToTTP(ttpName: String) {
@@ -210,12 +184,10 @@ class User(
                             connected[i],
                             ByteArray(0)
                         ) // myShares contains the ttp names for easier reconstruction
-                    // TODO: add message to the reception side
                         val index = allTTPs?.indexOfFirst { it!!.name == connected[i] }
                         if (index != -1) {
                             allTTPs!![index!!]?.connectedUserManager?.addConnectedUser(name,partsList[i]!!)
                             allTTPs[index]?.connected_Users?.add((name to partsList[i]))
-                            Log.i("adr added","added $index (${connected[i]})")
                         }
                     }
                 }
@@ -235,9 +207,9 @@ class User(
         if (!isAllRoles) {
 
             val share = communicationProtocol.requestShare(signature,name,ttpName)
-            var index2 = myShares.indexOfFirst { it.first == ttpName }
-            if (index2 != -1) {
-                myShares[index2] = ttpName to share
+            var index = myShares.indexOfFirst { it.first == ttpName }
+            if (index != -1) {
+                myShares[index] = ttpName to share
             }
         }
         else{
@@ -247,32 +219,28 @@ class User(
             val isValidTime = signedTime != null && abs(System.currentTimeMillis() - signedTime) <= 2 * 60 * 1000 // allows only 2 minutes for replay attack
             val communicationProtocol = communicationProtocol as IPV8CommunicationProtocol
 
-            if (name == signedUser && isValidTime) {
-                Log.i("adr", "$signedMessage seems fine (not expired, matching sender)")
-            } else {
-                Log.i("adr", "Invalid signature timestamp or user mismatch. Time diff: ${System.currentTimeMillis() - (signedTime ?: 0)}")
+            if (!(name == signedUser && isValidTime)) {
+                // Log.i("adr", "Invalid signature timestamp or user mismatch. Time diff: ${System.currentTimeMillis() - (signedTime ?: 0)}")
                 return
             }
             val allTTPs = ParticipantHolder.ttp?.plus(ParticipantHolder.regttp)
 
-            var index = allTTPs?.indexOfFirst { it!!.name == ttpName }
+            var recipientIndex = allTTPs?.indexOfFirst { it!!.name == ttpName }
 
             val addressList = communicationProtocol.addressBookManager.getAllAddresses()
 
-            Log.i("adr", "Searching for $name in \n$addressList")
             val senderPK = addressList.find { it.name == name }?.publicKey
 
             if (senderPK == null) {
-                Log.i("adr", "User $name not found in address book.")
                 return
             }
-            val group = index?.let { allTTPs?.get(it)?.group }!!
+            val group = recipientIndex?.let { allTTPs?.get(it)?.group }!!
 
             val valid = Schnorr.verifySchnorrSignature(signature, senderPK, group)
             if (valid){
-                var index2 = myShares.indexOfFirst { it.first == ttpName }
-                if (index2 != -1) {
-                    myShares[index2] = ttpName to allTTPs?.get(index)!!.connected_Users.first{ it.first == name }.second
+                var indexShare = myShares.indexOfFirst { it.first == ttpName }
+                if (indexShare != -1) {
+                    myShares[indexShare] = ttpName to allTTPs?.get(recipientIndex)!!.connected_Users.first{ it.first == name }.second
                 }
                 }
 
@@ -328,13 +296,10 @@ class User(
         val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
 
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
-        Log.i("Withdraw", "Created DEuro, ${wallet.getAllWalletEntriesToSpend()}")
 
         wallet.addToWallet(digitalEuro, firstT)
-        Log.i("Withdraw", "added DEuro, ${wallet.getAllWalletEntriesToSpend()}")
 
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
-        Log.i("Withdraw", "Withdrawal complete")
 
         return digitalEuro }
     fun getBalance(): Int {
@@ -346,9 +311,14 @@ class User(
         publicKeyBank: Element,
         publicKeySender: Element
     ): String {
+        Log.i("adr author3.01","tranaction created")
+
         val usedRandomness = lookUpRandomness(publicKeySender) ?: return "Randomness Not found!"
+        Log.i("adr author3.1","tranaction created")
+
         removeRandomness(publicKeySender)
         val transactionResult = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
+        Log.i("adr author3.2","tranaction created")
 
         if (transactionResult.valid) {
             Log.i("adr coin received","adding to wallet!")

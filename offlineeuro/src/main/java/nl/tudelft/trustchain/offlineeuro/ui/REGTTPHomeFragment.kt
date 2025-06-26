@@ -28,7 +28,6 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
         savedInstanceState: Bundle?
     ) {
         super.onViewCreated(view, savedInstanceState)
-        Log.d("adr_am i null?",(ParticipantHolder.regttp == null).toString())
         if (ParticipantHolder.regttp != null) {
             regttp = ParticipantHolder.regttp!!
             iPV8CommunicationProtocol = regttp.communicationProtocol as IPV8CommunicationProtocol
@@ -49,8 +48,6 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
             )
 
         }
-        Log.d("adr_GROUPCHECK","g:${regttp.group.g}, \nh:${regttp.group.h}, \ngt:${regttp.group.gt} \n${regttp.crs} \n" +
-            "${regttp.crsMap}")
         setWelcomeText(view,regttp.name)
         onDataChangeCallback(null)
         val ttpInfo: MutableList<Pair<String, Boolean>> = mutableListOf(regttp.name to true)
@@ -92,7 +89,7 @@ class REGTTPHomeFragment : BaseTTPFragment(R.layout.fragment_reg_home) {
         if(userListContainer == null){
             return
         }
-        // Remove all children except the header (assumed to be the first child)
+        // Remove all children except the header
         if (userListContainer.childCount > 1) {
             userListContainer.removeViews(1, userListContainer.childCount - 1)
         }

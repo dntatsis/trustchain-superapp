@@ -6,6 +6,7 @@ import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.shamir.Scheme
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
@@ -57,12 +58,10 @@ class Bank(
     }
 
     private fun lookUp(userPublicKey: Element): Element? {
-        Log.i("adr lookup", "looking up ${withdrawUserRandomness.entries.joinToString("\n")},\n for pk: $userPublicKey")
         for (element in withdrawUserRandomness.entries) {
             val key = element.key
 
             if (key == userPublicKey) {
-                Log.i("adr succ","success!")
                 return element.value
             }
         }
@@ -123,23 +122,17 @@ class Bank(
                 if (!isAllRoles) {
                     dsResult = communicationProtocol.requestFraudControl(euroProof, depositProof) as MutableMap<String, FraudControlReplyMessage>
                 } else {
-                    val regttpresult = ParticipantHolder.regttp!!.getUserFromProofs(euroProof, depositProof)!!
-                   dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage(regttpresult)
-                    for (ttp in ParticipantHolder.ttp!!) {
-                        val result = ttp.getUserFromProofs(euroProof, depositProof)
-                        if (result == null){ // in case of null reply from TTP
-                            dsResult[ttp.name] = FraudControlReplyMessage(ByteArray(0))
-                        }
-                        else{
-                            dsResult[ttp.name] = FraudControlReplyMessage(result)
-                        }
-                    }
-                }
+                    dsResult = simulateFraudControl(euroProof,depositProof)
+                  }
+
+                // reconstruct secret from shares
 
                 val sortedMessages = dsResult.entries.sortedBy { it.key }
+
                 val partialPart: Map<Int, ByteArray> = sortedMessages.mapIndexed { index, message ->
                     (index + 1) to message.value.result
                 }.toMap()
+
                 val scheme = Scheme(SecureRandom(), User.maximum_shares, User.minimum_shares)
 
                 val recovered = scheme.join(partialPart)
@@ -152,7 +145,7 @@ class Bank(
                     // <Increase user balance here and penalize the fraudulent User>
                     depositedEuroManager.insertDigitalEuro(euro)
                     // onDataChangeCallback?.invoke(dsResult.toString())
-                    return "Double spending detected: User secret: $recoveredString"
+                    return "Double spending detected, user secret: $recoveredString"
                 }
             } catch (e: Exception) {
                 depositedEuroLogger.add(Pair(euro.serialNumber, true))
@@ -168,6 +161,37 @@ class Bank(
         return "Detected double spending but could not blame anyone"
     }
 
+    fun simulateFraudControl(
+        proof1: GrothSahaiProof,
+        proof2: GrothSahaiProof
+
+    ): MutableMap<String, FraudControlReplyMessage> {
+        val dsResult: MutableMap<String, FraudControlReplyMessage> = mutableMapOf()
+
+        val regttpresult = ParticipantHolder.regttp!!.getUserFromProofs(proof1, proof2)
+
+        if (regttpresult == null){
+            dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage(ByteArray(0))
+
+        }
+        else{
+            dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage(regttpresult)
+
+        }
+
+        for (ttp in ParticipantHolder.ttp!!) {
+            val result = ttp.getUserFromProofs(proof1, proof1)
+            if (result == null){ // in case of null reply from TTP
+                dsResult[ttp.name] = FraudControlReplyMessage(ByteArray(0))
+            }
+            else{
+                dsResult[ttp.name] = FraudControlReplyMessage(result)
+            }
+        }
+        return dsResult
+
+    }
+
     fun getDepositedTokens(): List<DigitalEuro> {
         return depositedEuros
     }
@@ -177,9 +201,11 @@ class Bank(
         publicKeyBank: Element,
         publicKeySender: Element
     ): String {
+
         val transactionResult = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
 
         if (transactionResult.valid) {
+
             val digitalEuro = transactionDetails.digitalEuro
             digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
             val retval = depositEuro(transactionDetails.digitalEuro, publicKeySender)

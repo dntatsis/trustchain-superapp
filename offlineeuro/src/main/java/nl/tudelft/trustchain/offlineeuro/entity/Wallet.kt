@@ -63,7 +63,10 @@ class Wallet(
         bilinearGroup: BilinearGroup,
         crs: CRS
     ): TransactionDetails? {
-        val walletEntry = walletManager.getNumberOfWalletEntriesToSpend(1).firstOrNull() ?: return null
+        val walletEntry = walletManager.getNumberOfWalletEntriesToSpend(1).firstOrNull()
+        if(walletEntry == null){
+            return null
+        }
         val euro = walletEntry.digitalEuro
         walletManager.incrementTimesSpent(euro)
         return Transaction.createTransaction(privateKey, publicKey, walletEntry, randomizationElements, bilinearGroup, crs)

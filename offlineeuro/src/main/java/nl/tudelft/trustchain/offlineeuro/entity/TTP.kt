@@ -34,7 +34,6 @@ open class TTP(
     val active: Boolean = true,
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
         var regGroup: BilinearGroup = BilinearGroup(PairingTypes.FromFileCopy, context = context)
-        lateinit var regCrs: CRS
         var crsMap: Map<Element, Element>
         init {
         communicationProtocol.participant = this
@@ -73,8 +72,8 @@ open class TTP(
             secretShare: ByteArray
         ): Boolean {
             val result = connectedUserManager.addConnectedUser(name, secretShare)
-            // TODO: actually use database for this
-            val index = connected_Users.indexOfFirst { it.first == name }
+
+            val index = connected_Users.indexOfFirst { it.first == name } // add user and share to the connected list
             if (index != -1) {
                 connected_Users[index] = name to secretShare  // update
             } else {
@@ -88,9 +87,9 @@ open class TTP(
         Log.d("RegisteredUsers for $name: ", registeredUserManager.getAllRegisteredUsers().toString())
         return registeredUserManager.getAllRegisteredUsers()
     }
-        fun getConnectedUsers(): List<ConnectedUser> {
-            return connectedUserManager.getAllConnectedUsers()
-        }
+    fun getConnectedUsers(): List<ConnectedUser> {
+        return connectedUserManager.getAllConnectedUsers()
+    }
     override fun onReceivedTransaction(
         transactionDetails: TransactionDetails,
         publicKeyBank: Element,
@@ -111,6 +110,7 @@ open class TTP(
             hPrime = elems.elementAt(6),
             vPrime = elems.elementAt(7)).toCRSBytes()
     }
+
     fun getUserFromProof(grothSahaiProof: GrothSahaiProof): String? { // return name of user
         val crsExponent = crsMap[crs.u]
         val publicKey =

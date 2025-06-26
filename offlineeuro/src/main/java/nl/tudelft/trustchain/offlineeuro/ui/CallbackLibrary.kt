@@ -91,35 +91,6 @@ object CallbackLibrary {
 
         if (message != null) {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-
-            val ttpInfo: MutableList<Pair<String, Boolean>> = mutableListOf(ttp.name to true)
-            val commProt = ttp.communicationProtocol as? IPV8CommunicationProtocol
-            if (commProt != null) {
-                val allNames = commProt.addressBookManager.getAllAddresses()
-                    .filter { it.type == Role.TTP }
-                    .map { it.name to false }
-                    .filter { it !in ttpInfo }
-
-                ttpInfo.addAll(allNames)
-                regttpHomeFragment.refreshOtherTTPsView(view, ttp.name, ttpInfo)
-
-                val regUsers = commProt.addressBookManager.getAllAddresses()
-                    .filter { it.type == Role.User || it.type == Role.Bank }
-                    .map { Triple(it.type.toString(), it.name, it.publicKey.toString().take(10)) }
-
-                Log.i("adr im here",regUsers.toString())
-                regttpHomeFragment.refreshRegisteredUsersView(view, regUsers)
-                regttpHomeFragment.refreshSecretSharesView(view, ttp.connected_Users)
-            }
-
-            val addressList = view.findViewById<LinearLayout>(R.id.participant_address_book)
-            val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-                .filter { it.name != ttp.name }
-
-            if (addressList != null) {
-                TableHelpers.addAddressesToTable(addressList, addresses, ttp, context)
-                view.refreshDrawableState()
-            }
         }
 
         updateUserList(view, ttp)
@@ -130,7 +101,6 @@ object CallbackLibrary {
     ) {
         val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
         val users = ttp.getRegisteredUsers()
-        Log.i("adr_updateuserlist",users.toString())
         TableHelpers.removeAllButFirstRow(table)
         TableHelpers.addRegisteredUsersToTable(table, users)
     }

@@ -37,7 +37,6 @@ abstract class Participant(
     }
 
     fun registerAtTTP() {
-        // TODO NAME OF TTP
         communicationProtocol.register(name, publicKey, "TTP")
     }
 

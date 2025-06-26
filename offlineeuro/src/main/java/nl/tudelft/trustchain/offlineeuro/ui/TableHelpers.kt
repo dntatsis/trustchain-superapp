@@ -228,14 +228,14 @@ object TableHelpers {
         secondaryButton.text = "Request Share"
         mainButton.setOnClickListener {
             try {
-                val digitalEuro = user.connectToTTP(ttpName)
+                user.connectToTTP(ttpName)
             } catch (e: Exception) {
-                 Toast.makeText(context, "connect error", Toast.LENGTH_SHORT).show()
+                 Toast.makeText(context, "Connect error", Toast.LENGTH_SHORT).show()
             }
         }
         secondaryButton.setOnClickListener {
             try {
-                val digitalEuro = user.recoverShare(ttpName)
+                user.recoverShare(ttpName)
             } catch (e: Exception) {
                 Toast.makeText(context, "recover error", Toast.LENGTH_SHORT).show()
             }
@@ -265,7 +265,7 @@ object TableHelpers {
                     val digitalEuro = user.withdrawDigitalEuro(bankName)
                     Toast.makeText(context, "Successfully withdrawn ${digitalEuro.serialNumber}", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "withdrawal error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Withdrawal error", Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -275,7 +275,7 @@ object TableHelpers {
 
                     Toast.makeText(context, depositResult, Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "depositing error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Depositing error", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -301,7 +301,7 @@ object TableHelpers {
                 try {
                     val result = user.sendDigitalEuroTo(userName)
                 } catch (e: Exception) {
-                    Toast.makeText(context, "user transfer error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "User transfer error", Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -309,7 +309,7 @@ object TableHelpers {
                 try {
                     val result = user.doubleSpendDigitalEuroTo(userName)
                 } catch (e: Exception) {
-                    Toast.makeText(context, "user doublespend error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "User doublespend error", Toast.LENGTH_SHORT).show()
                 }
             }
         }

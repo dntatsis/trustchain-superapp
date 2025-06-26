@@ -10,7 +10,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 class BilinearGroupCRSPayload(
     val bilinearGroupElements: BilinearGroupElementsBytes,
     val crsFirst: CRSBytes,
-    val crsSecond: CRSBytes,
+    val crsSecond: CRSBytes, // crsMap Values for sharing amongst TTPs
     val ttpPublicKey: ByteArray
 ) : Serializable {
     override fun serialize(): ByteArray {
