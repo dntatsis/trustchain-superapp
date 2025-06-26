@@ -82,6 +82,14 @@
                         android:textColor="@color/white"/>
                 </LinearLayout>
             </LinearLayout>
+
+
+
+            <TextView
+                android:id="@+id/print_fraud_users"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="List of fraud users: _vals_" />
         </LinearLayout>
     </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -405,7 +405,7 @@ class IPV8CommunicationProtocol(
         val firstProof = GrothSahaiSerializer.deserializeProofBytes(message.firstProofBytes, participant.group)
         val secondProof = GrothSahaiSerializer.deserializeProofBytes(message.secondProofBytes, participant.group)
         val result = ttp.getUserFromProofs(firstProof, secondProof)
-        community.sendFraudControlReply(result, message.requestingPeer)
+        community.sendFraudControlReply(result.first?:"",result.second?:ByteArray(0), message.requestingPeer)
     }
 
     private fun handleRequestMessage(message: ICommunityMessage) {

@@ -608,10 +608,11 @@ class OfflineEuroCommunity(
     }
 
     fun sendFraudControlReply(
+        name: String,
         result: ByteArray?,
         peer: Peer
     ) {
-        val payload = ByteArrayPayload(result ?: ByteArray(0))
+        val payload = ShareResponsePayload(name,result ?: ByteArray(0),"")
         val packet =
             serializePacket(
                 MessageID.FRAUD_CONTROL_REPLY,
@@ -621,13 +622,14 @@ class OfflineEuroCommunity(
     }
 
     fun onFraudControlReplyPacket(packet: Packet) {
-        val (_, payload) = packet.getAuthPayload(ByteArrayPayload)
+        val (_, payload) = packet.getAuthPayload(ShareResponsePayload)
         onFraudControlReply(payload)
     }
 
-    fun onFraudControlReply(payload: ByteArrayPayload) {
-        val fraudControlResult = payload.bytes
-        addMessage(FraudControlReplyMessage(fraudControlResult))
+    fun onFraudControlReply(payload: ShareResponsePayload) {
+        val fraudster = payload.userName
+        val fraudControlResult = payload.secretShare
+        addMessage(FraudControlReplyMessage(fraudster,fraudControlResult))
     }
 
     fun scopePeers(

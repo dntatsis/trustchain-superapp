@@ -27,7 +27,7 @@ class Bank(
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
     val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
     val depositedEuroLogger: ArrayList<Pair<String, Boolean>> = arrayListOf()
-
+    var fraudUsers: MutableList <String> = mutableListOf()
     init {
         communicationProtocol.participant = this
         this.group = group
@@ -129,6 +129,13 @@ class Bank(
 
                 val sortedMessages = dsResult.entries.sortedBy { it.key }
 
+                val l = dsResult.values.map { it.name }.distinct()
+                var name: String? = null
+
+                if(l.size == 1 && l[0] != ""){
+                    name = l[0]
+                }
+
                 val partialPart: Map<Int, ByteArray> = sortedMessages.mapIndexed { index, message ->
                     (index + 1) to message.value.result
                 }.toMap()
@@ -145,7 +152,10 @@ class Bank(
                     // <Increase user balance here and penalize the fraudulent User>
                     depositedEuroManager.insertDigitalEuro(euro)
                     // onDataChangeCallback?.invoke(dsResult.toString())
-                    return "Double spending detected, user secret: $recoveredString"
+                    if(name != null){
+                        fraudUsers.add(name)
+                    }
+                    return "Double spending detected by $name, user secret: $recoveredString"
                 }
             } catch (e: Exception) {
                 depositedEuroLogger.add(Pair(euro.serialNumber, true))
@@ -170,22 +180,23 @@ class Bank(
 
         val regttpresult = ParticipantHolder.regttp!!.getUserFromProofs(proof1, proof2)
 
-        if (regttpresult == null){
-            dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage(ByteArray(0))
+        if (regttpresult.first == null){
+            dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage("",ByteArray(0))
 
         }
         else{
-            dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage(regttpresult)
+            dsResult[ParticipantHolder.regttp!!.name] = FraudControlReplyMessage(regttpresult.first!!, regttpresult.second!!)
 
         }
 
         for (ttp in ParticipantHolder.ttp!!) {
             val result = ttp.getUserFromProofs(proof1, proof1)
-            if (result == null){ // in case of null reply from TTP
-                dsResult[ttp.name] = FraudControlReplyMessage(ByteArray(0))
+
+            if (result.first == null){ // in case of null reply from TTP
+                dsResult[ttp.name] = FraudControlReplyMessage("",ByteArray(0))
             }
             else{
-                dsResult[ttp.name] = FraudControlReplyMessage(result)
+                dsResult[ttp.name] = FraudControlReplyMessage(result.first!!, result.second!!)
             }
         }
         return dsResult
