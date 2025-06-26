@@ -128,16 +128,16 @@ open class TTP(
     fun getUserFromProofs(
         firstProof: GrothSahaiProof,
         secondProof: GrothSahaiProof
-    ): ByteArray? {
+    ): Pair<String?,ByteArray?> {
         val firstUser = getUserFromProof(firstProof)
         val secondUser = getUserFromProof(secondProof)
         if (firstUser != null && firstUser == secondUser) {
 
-            return getSharefromTTP(firstUser)
+            return Pair(firstUser,getSharefromTTP(firstUser))
         } else {
 //            onDataChangeCallback?.invoke("Invalid fraud request received!")
 //            "No double spending detected"
-            return null
+            return Pair(null,null)
         }
     }
 

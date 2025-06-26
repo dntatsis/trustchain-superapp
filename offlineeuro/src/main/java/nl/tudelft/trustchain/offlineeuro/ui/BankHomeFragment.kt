@@ -4,7 +4,9 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import nl.tudelft.trustchain.offlineeuro.R
@@ -80,4 +82,6 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
             }
         }
     }
+
+
 }

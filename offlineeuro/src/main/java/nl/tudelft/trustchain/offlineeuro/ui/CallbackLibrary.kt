@@ -41,6 +41,16 @@ object CallbackLibrary {
             TableHelpers.removeAllButFirstRow(table)
             TableHelpers.addDepositedEurosToTable(table, bank)
         }
+
+        fun updateFraudInfo(view: View) {
+            val listTextView = view.findViewById<TextView>(R.id.print_fraud_users)
+            val connectedTemplate = "List of fraud Users: [_vals_]"
+            val updatedListText = connectedTemplate
+                .replace("_vals_", bank.fraudUsers.joinToString(", "))
+
+            listTextView?.text = updatedListText
+        }
+        updateFraudInfo(view)
     }
     fun ttpCallback(
         context: Context,
