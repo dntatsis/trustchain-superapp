@@ -396,22 +396,7 @@ class IPV8CommunicationProtocol(
             community.sendShareRequestResponsePacket(message.peer, response)
         }
     }
-//    private fun handleShareResponseMessage(message: ShareResponseMessage){ // When receiving a Share Response, trigger the callback
-//        if(participant is User && message.userName == participant.name){
-//            // partial secret share has been returned.
-//                val index = (participant as User).myShares.indexOfFirst { it.first == message.sender }
-//
-//                if (index != -1) {
-//                    (participant as User).myShares[index] = message.sender to message.secretShare
-//                } else {
-//                    print("Name not found in the list")
-//                }
-//            participant.onDataChangeCallback?.invoke("secret_share_recv " + message.secretShare.toString())
-//        }
-//        // TODO: add bank logic here
-//        return
-//
-//    }
+
     private fun handleConnectionMessage(message: TTPConnectionMessage) { // Handle TTP Connection message by adding the share to the participants secret share library.
         if (participant !is REGTTP && participant !is TTP) {
             return

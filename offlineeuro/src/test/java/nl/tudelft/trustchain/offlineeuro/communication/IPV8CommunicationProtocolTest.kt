@@ -6,6 +6,7 @@ import it.unisa.dia.gas.jpbc.Element
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.ipv8.messaging.eva.TimeoutException
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
@@ -15,6 +16,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ShareResponseMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
@@ -23,6 +25,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
@@ -326,5 +329,50 @@ class IPV8CommunicationProtocolTest {
 
         verify(user, times(1)).onReceivedTransaction(transactionDetails, bankPK, publicKeySender)
         verify(community, times(1)).sendTransactionResult(result, receivingPeer)
+    }
+
+    @Test
+    fun requestShareTest() {
+        val userName = "TestUser"
+        val ttpName = "TTP"
+        val signature = Mockito.mock(SchnorrSignature::class.java)
+        val expectedShare = "supersecretshare".toByteArray()
+
+        addressBookManager.insertAddress(ttpAddress)
+
+        `when`(community.requestSharefromTTP(signature, userName, ttpAddress.peerPublicKey!!)).then { }
+        `when`(community.messageList).thenReturn(iPV8CommunicationProtocol.messageList)
+
+        val replyMessage = ShareResponseMessage(userName, expectedShare, ttpName)
+        community.messageList.add(replyMessage)
+
+        val share = iPV8CommunicationProtocol.requestShare(signature, userName, ttpName)
+
+        Assert.assertArrayEquals(expectedShare, share)
+    }
+
+    @Test
+    fun connectToTTPTest() {
+        val userName = "TestUser"
+        val ttpName = "TTP"
+        val secretShare = "mysecret".toByteArray()
+
+        addressBookManager.insertAddress(ttpAddress)
+
+        `when`(community.connectAtTTP(userName, secretShare, ttpAddress.peerPublicKey!!)).then { }
+
+        iPV8CommunicationProtocol.connect(userName, secretShare, ttpName)
+
+        verify(community, times(1)).connectAtTTP(userName, secretShare, ttpAddress.peerPublicKey!!)
+    }
+
+    @Test
+    fun getPublicKeyOfTest() {
+        val name = "Receiver"
+        addressBookManager.insertAddress(receiverAddress)
+
+        val pk = iPV8CommunicationProtocol.getPublicKeyOf(name, groupDescription)
+
+        Assert.assertEquals(receiverAddress.publicKey, pk)
     }
 }

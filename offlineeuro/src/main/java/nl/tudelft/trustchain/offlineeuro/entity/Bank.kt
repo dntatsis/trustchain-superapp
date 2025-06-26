@@ -147,7 +147,7 @@ class Bank(
 
                 Log.i("adr fraud control", "Recovered string: $recoveredString")
 
-                if (dsResult.isNotEmpty()) {
+                if (dsResult.isNotEmpty() && recoveredString.isNotBlank()) {
                     depositedEuroLogger.add(Pair(euro.serialNumber, true))
                     // <Increase user balance here and penalize the fraudulent User>
                     depositedEuroManager.insertDigitalEuro(euro)

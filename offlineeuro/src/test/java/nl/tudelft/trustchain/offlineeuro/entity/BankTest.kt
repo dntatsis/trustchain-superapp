@@ -1,16 +1,21 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.util.Log
+import it.unisa.dia.gas.jpbc.Element
 import kotlinx.coroutines.runBlocking
 import nl.tudelft.trustchain.offlineeuro.communication.CRSTransformer
+import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
-import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
+import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
@@ -29,7 +34,8 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigInteger
-import kotlin.coroutines.CoroutineContext
+import java.util.concurrent.Callable
+import org.mockito.Mockito.mockStatic
 
 class BankTest {
     private val ttpGroup = BilinearGroup(PairingTypes.FromFile)
@@ -144,6 +150,130 @@ class BankTest {
         val noRandomnessRequestedKey = ttpGroup.generateRandomElementOfG()
         val response = bank.createBlindSignature(blindedChallenge.blindedChallenge, noRandomnessRequestedKey)
         Assert.assertEquals("There should be no randomness found", BigInteger.ZERO, response)
+    }
+
+    @Test
+    fun depositEuro_newEuro_successfullyDeposited() {
+        // Arrange
+        val group = ttpGroup
+        val addressBookManager = Mockito.mock(AddressBookManager::class.java)
+        val community = Mockito.mock(OfflineEuroCommunity::class.java)
+        val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+
+        val bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, false)
+        bank.crs = crs
+        bank.generateKeyPair()
+
+        val mockEuro = Mockito.mock(DigitalEuro::class.java)
+        val publicKeyUser = group.generateRandomElementOfG()
+        val euroSerial = "serial-123"
+        Mockito.`when`(mockEuro.serialNumber).thenReturn(euroSerial)
+        Mockito.`when`(mockEuro.proofs).thenReturn(arrayListOf())
+
+        // No duplicates
+        Mockito.`when`(depositedEuroManager.getDigitalEurosByDescriptor(mockEuro)).thenReturn(emptyList())
+
+        // Act
+        val result = bank.javaClass.getDeclaredMethod("depositEuro", DigitalEuro::class.java, Element::class.java)
+            .apply { isAccessible = true }
+            .invoke(bank, mockEuro, publicKeyUser) as String
+
+        // Assert
+        Assert.assertEquals("Deposit was successful!", result)
+        Mockito.verify(depositedEuroManager).insertDigitalEuro(mockEuro)
+        Assert.assertTrue(bank.depositedEuroLogger.any { it.first == euroSerial && !it.second })
+    }
+
+    @Test
+    fun depositEuro_doubleSpending_detectedAndRecovered() {
+        // Arrange
+        val group = ttpGroup
+        val communicationProtocol = Mockito.mock(IPV8CommunicationProtocol::class.java)
+
+        val bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, false)
+        bank.crs = crs
+        bank.generateKeyPair()
+
+        // Created two different proofs to simulate double-spending
+        val proof1 = Mockito.mock(GrothSahaiProof::class.java)
+        val proof2 = Mockito.mock(GrothSahaiProof::class.java)
+
+        // DigitalEuro being deposited
+        val newEuro = Mockito.mock(DigitalEuro::class.java)
+        Mockito.`when`(newEuro.serialNumber).thenReturn("serial-123")
+        Mockito.`when`(newEuro.proofs).thenReturn(arrayListOf(proof1))
+
+        // Duplicating euro with same serial but different proof
+        val duplicateEuro = Mockito.mock(DigitalEuro::class.java)
+        Mockito.`when`(duplicateEuro.serialNumber).thenReturn("serial-123")
+        Mockito.`when`(duplicateEuro.proofs).thenReturn(arrayListOf(proof2))
+
+        // Simulating double spending by returning duplicate
+        Mockito.`when`(depositedEuroManager.getDigitalEurosByDescriptor(newEuro))
+            .thenReturn(listOf(duplicateEuro))
+
+        val publicKeyUser = group.generateRandomElementOfG()
+
+        // TTP response with user secret
+        val fakeSecret = "RecoveredSecretFromTTP"
+        val fraudResponse = FraudControlReplyMessage(fakeSecret.toByteArray())
+
+        // Simulate fraud control returning a valid result
+        Mockito.`when`(communicationProtocol.requestFraudControl(proof1, proof2))
+            .thenReturn(mutableMapOf("TTP" to fraudResponse))
+
+        // Act: use reflection to call private method
+        val result = bank.javaClass.getDeclaredMethod("depositEuro", DigitalEuro::class.java, Element::class.java)
+            .apply { isAccessible = true }
+            .invoke(bank, newEuro, publicKeyUser) as String
+
+        // Assert
+        Assert.assertTrue(result.contains("Double spending detected"))
+        Assert.assertTrue(result.contains(fakeSecret))
+        Mockito.verify(depositedEuroManager).insertDigitalEuro(newEuro)
+        Assert.assertTrue(bank.depositedEuroLogger.any { it.first == "serial-123" && it.second })
+    }
+
+
+    @Test
+    fun depositEuro_doubleSpending_ttpUnreachable() {
+        // Arrange
+        val group = ttpGroup
+        val communicationProtocol = Mockito.mock(IPV8CommunicationProtocol::class.java)
+
+        val bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, false)
+        bank.crs = crs
+        bank.generateKeyPair()
+
+        val proof1 = Mockito.mock(GrothSahaiProof::class.java)
+        val proof2 = Mockito.mock(GrothSahaiProof::class.java)
+
+        val newEuro = Mockito.mock(DigitalEuro::class.java)
+        Mockito.`when`(newEuro.serialNumber).thenReturn("serial-456")
+        Mockito.`when`(newEuro.proofs).thenReturn(arrayListOf(proof1))
+
+        val duplicateEuro = Mockito.mock(DigitalEuro::class.java)
+        Mockito.`when`(duplicateEuro.serialNumber).thenReturn("serial-456")
+        Mockito.`when`(duplicateEuro.proofs).thenReturn(arrayListOf(proof2))
+
+        Mockito.`when`(depositedEuroManager.getDigitalEurosByDescriptor(newEuro))
+            .thenReturn(listOf(duplicateEuro))
+
+        val publicKeyUser = group.generateRandomElementOfG()
+
+        // Simulating TTP being unreachable
+        Mockito.`when`(communicationProtocol.requestFraudControl(proof1, proof2))
+            .thenThrow(RuntimeException("TTP unreachable"))
+
+        // Act
+        val result = bank.javaClass.getDeclaredMethod("depositEuro", DigitalEuro::class.java, Element::class.java)
+            .apply { isAccessible = true }
+            .invoke(bank, newEuro, publicKeyUser) as String
+
+        // Assert
+        Assert.assertTrue(result.contains("Found double spending proofs, but TTP is unreachable"))
+        Mockito.verify(depositedEuroManager).insertDigitalEuro(newEuro)
+        Assert.assertTrue(bank.depositedEuroLogger.any { it.first == "serial-456" && it.second })
     }
 
     fun getBank(): Bank {
