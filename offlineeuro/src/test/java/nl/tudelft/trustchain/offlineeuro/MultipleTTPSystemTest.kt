@@ -186,7 +186,7 @@ class MultipleTTPSystemTest {
         }
 
         // Deposit double spend Euro
-        spendEuro(user3, bank, "Double spending detected: User secret: my secret share")
+        spendEuro(user3, bank, "Double spending detected, user secret: my secret share")
     }
 
     private fun withdrawDigitalEuro(

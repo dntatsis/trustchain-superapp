@@ -166,7 +166,7 @@ class SystemTest {
         }
 
         // Deposit double spend Euro
-        spendEuro(user3, bank, "Double spending detected: User secret: test123")
+        spendEuro(user3, bank, "Double spending detected, user secret: test123")
     }
 
     @Test
